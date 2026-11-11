@@ -4,7 +4,10 @@
      12 行「365金卡洗脸巾2」：第 1 行从开卡当天到当月月底，之后按自然月推（mode='calendar'）
                              或从开卡日起每满一个月一段（mode='rolling'）
      30 行「365金卡代金券」：开卡当天 → 一年后同一天
-   券号从起始号（默认 365001）连续往下编，多人接着编不重号。
+   券号 = 365 + 开卡年份后 2 位 + 手机号 + 序号 01~42（共 18 位），如 365 26 18968256111 01。
+     2026-11-11 用户选的：网页会给多人在不同电脑上用，不联网也要保证不撞号；
+     原来的 365001 连号只够 23 人，而且各电脑各编各的必撞。
+     只有「同一手机号同一年开两次卡」会撞。
    「月份」页是旧的辅助表，已删；「开卡或续卡」页模板里就是空的，原样保留。 */
 (function (root) {
   const WASH = 12, CASH = 30;
@@ -35,19 +38,22 @@
     return out;
   }
 
+  const voucherNo = (date, phone, k) => '365' + String(date.getFullYear()).slice(-2) + phone + pad(k);
+
   // people: [{name, phone}]；返回每行的纯数据，预览和导出都用它
   function buildRows(people, opt) {
     const start = opt.date, end = addMonths(start, 12);
-    let no = opt.startNo;
     const rows = [];
     const wash = washPeriods(start, opt.mode);
     for (const p of people) {
+      let k = 1;
+      const no = () => voucherNo(start, p.phone, k++);
       for (let i = 0; i < WASH; i++) {
-        rows.push({ who: p, act: '365金卡洗脸巾2', no: String(no++), val: 15, obj: '分类一', objNo: '14',
+        rows.push({ who: p, act: '365金卡洗脸巾2', no: no(), val: 15, obj: '分类一', objNo: '14',
           phone: p.phone, s: wash[i][0], e: wash[i][1], rule: '零售价', scene: '仅线下使用', min: 15 });
       }
       for (let i = 0; i < CASH; i++) {
-        rows.push({ who: p, act: '365金卡代金券', no: String(no++), val: 10, obj: '', objNo: '',
+        rows.push({ who: p, act: '365金卡代金券', no: no(), val: 10, obj: '', objNo: '',
           phone: p.phone, s: start, e: end, rule: '实收价', scene: '通用', min: 200 });
       }
     }
@@ -84,7 +90,7 @@
     return `365金卡_${who}_${d}.xls`;
   }
 
-  const api = { buildRows, buildWorkbook, fileName, ymd, addMonths, WASH, CASH };
+  const api = { voucherNo, buildRows, buildWorkbook, fileName, ymd, addMonths, WASH, CASH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Gen = api;
 })(this);

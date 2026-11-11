@@ -80,6 +80,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .seg button{flex:1;border:0;background:#fff;padding:8px 6px;cursor:pointer;font-size:13px;color:var(--t2)}
 .seg button+button{border-left:1px solid var(--line-2)}
 .seg button.on{background:var(--ink);color:#fff}
+.rule{display:flex;align-items:baseline;gap:6px;padding:4px 0 5px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.rule b{font-family:var(--num);font-size:20px;font-weight:400}
+.rule i{font-style:normal;font-size:12px;color:var(--t3);border:1px solid var(--line-2);padding:0 6px}
 .opt .sub{font-size:12px;color:var(--t3);margin-top:8px}
 
 /* 概览数字 */
@@ -157,8 +160,8 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
         <div class="sub" id="dateSub"></div>
       </div>
       <div class="opt">
-        <label>起始券号</label>
-        <input type="number" id="startNo" value="365001">
+        <label>券号规则</label>
+        <div class="rule"><b>365</b><i>年份</i><b>手机号</b><i>01–42</i></div>
         <div class="sub" id="noSub"></div>
       </div>
       <div class="opt">
@@ -229,30 +232,29 @@ function curDate() { const [y, m, d] = $('#date').value.split('-').map(Number); 
 function update() {
   const { ok, issues } = parse($('#txt').value);
   people = ok;
-  const date = curDate(), startNo = parseInt($('#startNo').value, 10) || 365001;
-  const opt = { date, startNo, mode };
+  const date = curDate();
+  const opt = { date, mode };
+  const vn = (p, k) => Gen.voucherNo(date, p.phone, k);
   const per = Gen.WASH + Gen.CASH;
   const total = people.length * per;
-  const endNo = startNo + total - 1;
   const oneYear = Gen.addMonths(date, 12);
 
   $('#pCount').textContent = people.length;
   $('#okLine').innerHTML = people.length ? `识别 <b>${people.length}</b> 人` + (issues.length ? `，<b style="color:var(--pink-deep)">${issues.length}</b> 行有问题` : '') : (issues.length ? `<b style="color:var(--pink-deep)">${issues.length}</b> 行有问题` : '还没有名单');
   $('#issues').innerHTML = issues.slice(0, 50).map(x => `<div><i>第${x.n}行</i>${esc(x.raw.slice(0, 30))} · ${x.why}</div>`).join('');
   $('#plist').innerHTML = people.length ? '<table><tbody>' + people.map((p, i) => {
-    const a = startNo + i * per;
-    return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:var(--t3)">${a}–${a + per - 1}</td></tr>`;
+    return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:var(--t3)">${vn(p, 1)}…</td></tr>`;
   }).join('') + '</tbody></table>' : '';
 
   $('#dateSub').textContent = `代金券有效期 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}`;
-  $('#noSub').textContent = total ? `本次用到 ${startNo} – ${endNo}` : '每人占 42 个号，多人接着往下编';
+  $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
   const w = Gen.buildRows([{ phone: '0' }], opt);
   $('#modeSub').textContent = `第 1 张 ${Gen.ymd(w[0].s)}–${Gen.ymd(w[0].e)}，第 2 张 ${Gen.ymd(w[1].s)}–${Gen.ymd(w[1].e)}`;
 
   $('#tiles').innerHTML = `
     <div class="tile"><div class="k">会员</div><div class="v">${people.length}<small>人</small></div></div>
     <div class="tile"><div class="k">代金券行数</div><div class="v">${total}<small>行</small></div></div>
-    <div class="tile"><div class="k">券号</div><div class="v" style="font-size:22px;line-height:1.9">${total ? startNo + ' – ' + endNo : '—'}</div></div>
+    <div class="tile"><div class="k">每人券数</div><div class="v">${per}<small>张 · 洗脸巾 ${Gen.WASH} + 代金券 ${Gen.CASH}</small></div></div>
     <div class="tile"><div class="k">有效至</div><div class="v pk" style="font-size:22px;line-height:1.9">${Gen.ymd(oneYear)}</div></div>`;
 
   // 预览只放第 1 个人的 42 行，100 人全铺开没法看；其余人格式完全一样
@@ -261,7 +263,7 @@ function update() {
     $('#pvHint').textContent = '';
   } else {
     const rows = Gen.buildRows(people.slice(0, 1), opt);
-    $('#pvHint').textContent = people.length > 1 ? `只列第 1 人，其余 ${people.length - 1} 人格式一样、券号接着往下` : '';
+    $('#pvHint').textContent = people.length > 1 ? `只列第 1 人，其余 ${people.length - 1} 人格式一样，券号换成各自手机号` : '';
     let h = '<table><thead><tr><th>活动名称</th><th>代金券号</th><th>券面值</th><th>可使用对象</th><th>对象编号</th><th>会员编号</th><th>开始日期</th><th>截至日期</th><th>取价规则</th><th>使用场景</th><th>需购满额</th></tr></thead><tbody>';
     h += `<tr class="grp"><td colspan="11">${esc(people[0].name || '（未填姓名）')}<span class="ph">${people[0].phone}</span></td></tr>`;
     rows.forEach(r => {
@@ -302,7 +304,6 @@ const drop = $('#drop');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
 $('#date').oninput = update;
-$('#startNo').oninput = update;
 document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
   mode = b.dataset.v;
   document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b));
