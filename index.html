@@ -51,6 +51,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .parsed{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .phd{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line-2);background:var(--paper);font-size:13px;color:var(--t2)}
 .phd span{flex:1}
+.phd .saved{font-size:11px;color:var(--t4);margin-left:8px}
 .phd em{font-style:normal;font-family:var(--num);font-size:15px;color:var(--t1);margin-right:8px}
 .phd{height:53px;flex:none}
 .phd b{font-family:var(--num);font-size:17px;font-weight:400;color:var(--t1);margin:0 2px}
@@ -140,7 +141,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <h3>开卡会员 <span class="n" id="pCount">0</span></h3>
     <div class="inbox">
       <div class="drop" id="drop">
-        <div class="phd"><span><em>①</em>粘贴名单</span></div>
+        <div class="phd"><span><em>①</em>粘贴名单 <small class="saved">自动保存在本机，刷新不丢</small></span></div>
         <textarea id="txt" spellcheck="false" placeholder="直接粘贴名单，每行一人：&#10;张三 18968256111&#10;李四，13800000000&#10;18900000000（没有姓名也行）&#10;&#10;从 Excel 复制「姓名、手机号」两列粘进来就行，几百人也一次搞定。&#10;也可以把 Excel 文件直接拖到这里。"></textarea>
         <div class="dropmask">松手，读取这个 Excel</div>
       </div>
@@ -201,6 +202,18 @@ const today = new Date();
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 $('#date').value = iso(today);
 
+// 刷新不丢（2026-11-11 用户要求，以后所有网站默认都要有）：
+// 名单原样存在本机 localStorage；开卡日期只在当天恢复，隔天打开自动回到今天，免得用旧日期导出
+const KEY = 'hymn-365-card';
+try {
+  const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
+  if (sv.txt) $('#txt').value = sv.txt;
+  if (sv.date && sv.day === iso(today)) $('#date').value = sv.date;
+} catch (e) {}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify({ txt: $('#txt').value, date: $('#date').value, day: iso(today) })); } catch (e) {}
+}
+
 let people = [];      // 识别出的有效名单（已去重）
 const mode = 'calendar';   // 2026-11-11 用户定：固定按自然月，去掉了「按开卡日满月」切换
 
@@ -229,6 +242,7 @@ const okPhone = s => /^1\d{10}$/.test(s);
 function curDate() { const [y, m, d] = $('#date').value.split('-').map(Number); return y ? new Date(y, m - 1, d) : today; }
 
 function update() {
+  save();
   const { ok, issues } = parse($('#txt').value);
   people = ok;
   const date = curDate();
