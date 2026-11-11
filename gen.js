@@ -8,7 +8,7 @@
      2026-11-11 用户选的：网页会给多人在不同电脑上用，不联网也要保证不撞号；
      原来的 365001 连号只够 23 人，而且各电脑各编各的必撞。
      只有「同一手机号同一年开两次卡」会撞。
-   「月份」页是旧的辅助表，已删；「开卡或续卡」页模板里就是空的，原样保留。 */
+   「月份」页是旧的辅助表，已删；「开卡或续卡」页（模板里是空的）2026-11-11 用户说不要，也删了。 */
 (function (root) {
   const WASH = 12, CASH = 30;
 
@@ -74,12 +74,10 @@
       .concat(people.map(p => [String(p.phone), '1071', '1071', 0, 3])));
     ws2['!cols'] = [14, 10, 10, 10, 8].map(w => ({ wch: w }));
 
-    const ws3 = XLSX.utils.aoa_to_sheet([[]]);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws1, '代金券');
     XLSX.utils.book_append_sheet(wb, ws2, '3次护理导入');
-    XLSX.utils.book_append_sheet(wb, ws3, '开卡或续卡');
     return { wb, rows };
   }
 
