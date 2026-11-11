@@ -340,15 +340,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611111954"></script>
-<script src="report.js?v=202611111954"></script>
-<script src="xsel.js?v=202611111954"></script>
-<script src="datepick.js?v=202611111954"></script>
-<script src="api.js?v=202611111954"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111954"></script>
-<script src="vendor/jszip.min.js?v=202611111954"></script>
-<script src="xls.js?v=202611111954"></script>
-<script src="gen.js?v=202611111954"></script>
+<script src="stores.js?v=202611111955"></script>
+<script src="report.js?v=202611111955"></script>
+<script src="xsel.js?v=202611111955"></script>
+<script src="datepick.js?v=202611111955"></script>
+<script src="api.js?v=202611111955"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111955"></script>
+<script src="vendor/jszip.min.js?v=202611111955"></script>
+<script src="xls.js?v=202611111955"></script>
+<script src="gen.js?v=202611111955"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -503,14 +503,12 @@ $('#txt').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(
 $('#file').onchange = e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value = ''; };
 // 名单模板：姓名 / 手机号 / 日期（日期可不填，填了就是这个人自己的起算日）
 $('#tpl').onclick = () => {
+  // 2026-11-11 用户：太复杂了 → 只留 姓名 / 手机号 / 日期 三列，日期不填 = 当天，填了按写的日期
   const sd = d => ({ date: Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5) });
-  const nm1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const bytes = XLS.write(XLSX.CFB, [{ name: '名单', widths: [16, 16, 14, 14, 44], rows: [
-    ['姓名', '手机号', '日期', '新开卡/续卡', '说明（这一列不用填）'],
-    ['示例-张三', '13800000001', null, null, '日期空着 = 按网页上统一的日期；办卡空着 = 新开卡'],
-    ['示例-李四', '13800000002', sd(nm1), '续卡', '续卡从这天起算'],
-    ['示例-王五', '13800000003', sd(today), '新开卡', '开卡日期 = 这天'],
-    [null, null, null, null, '名字以「示例」开头的行导入时会自动跳过，可以不删'],
+  const bytes = XLS.write(XLSX.CFB, [{ name: '名单', widths: [14, 16, 20], rows: [
+    ['姓名', '手机号', '日期（不填 = 当天）'],
+    ['示例-张三', '13800000001', null],
+    ['示例-李四', '13800000002', sd(new Date(today.getFullYear(), today.getMonth() + 1, 1))],
   ] }]);
   download(new Blob([bytes], { type: XLS_MIME }), '365金卡名单模板.xls');
   logAct('tpl', '下载名单模板');
