@@ -1,0 +1,15 @@
+// 365金卡导入表。部署：npm run deploy（先 npx wrangler whoami 确认是 584298889@qq.com，hemei.asia 在它下面）
+// 国内打不开 *.workers.dev，只走自定义域名
+{
+  "name": "hymn-365-card",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "placement": { "mode": "smart" },
+  "routes": [{ "pattern": "card.hemei.asia", "custom_domain": true }],
+  // 页面是公开的静态文件（不含会员数据）；数据只从 /api/* 拿，必须登录
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "hymn-365-card", "database_id": "ed56a37d-05b6-433f-be44-95c2c8ec6d8a" }
+  ]
+}

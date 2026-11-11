@@ -1,0 +1,12 @@
+{
+  "name": "hymn-365-card",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --port 8791 --ip localhost",
+    "db:local": "wrangler d1 execute hymn-365-card --local --file=schema.sql",
+    "deploy": "./bump.sh && HTTPS_PROXY=http://127.0.0.1:7897 HTTP_PROXY=http://127.0.0.1:7897 NO_PROXY=localhost,127.0.0.1 wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.3"
+  }
+}

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>365金卡 · 店员登记</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23d9804a'/%3E%3Ctext x='32' y='42' fill='%23fbf1e3' font-family='Georgia,serif' font-weight='700' font-size='27' text-anchor='middle'%3E365%3C/text%3E%3C/svg%3E">
+<!-- 店员手机页：照抖音看板门店页的语言（白底、发丝线、直角、Didot 只给数字、粉只给要注意的量） -->
+<style>
+:root{--line:#F0EDE6;--line-2:#E3DFD6;--paper:#FAFAF8;--ink:#16140F;--t2:#4A453C;--t3:#9C958A;--t4:#B4ADA1;
+  --pink-deep:#B9808B;--pink-bg:#FAF2F3;--done:#2F5D45;--done-bg:rgba(47,93,69,.08);
+  --sans:-apple-system,"SF Pro Text","PingFang SC",system-ui,sans-serif;--num:Didot,"Bodoni 72",Georgia,"Songti SC",serif}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--sans);color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased;padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+button,input{font:inherit;color:inherit}
+.top{display:flex;align-items:center;justify-content:center;position:relative;height:56px;border-bottom:1px solid var(--line-2)}
+.top img{height:22px}
+.top .out{position:absolute;right:14px;border:0;background:none;font-size:13px;color:var(--t3)}
+.wrap{max-width:480px;margin:0 auto;padding:0 18px}
+h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
+.sub{font-size:13px;color:var(--t3)}
+.form{margin-top:22px;border-top:1px solid var(--line-2)}
+.row{display:flex;align-items:center;border-bottom:1px solid var(--line);min-height:56px}
+.row label{width:84px;flex:none;font-size:14px;color:var(--t2)}
+.row input{flex:1;border:0;outline:none;padding:14px 0;font-size:17px;background:transparent;min-width:0}
+.row input::placeholder{color:var(--t4)}
+.row input.num{font-family:var(--num);font-size:19px}
+.row .tip{font-size:12px;color:var(--t3);margin-left:8px;flex:none}
+.seg{display:flex;flex:1;border:1px solid var(--line-2)}
+.seg button{flex:1;border:0;background:#fff;padding:10px 4px;font-size:15px;color:var(--t2)}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on{background:var(--ink);color:#fff}
+.bad{color:var(--pink-deep)!important}
+.go{width:100%;margin-top:24px;background:var(--ink);color:#fff;border:0;padding:16px;font-size:16px;letter-spacing:.12em}
+.go:disabled{background:var(--t4)}
+.msg{min-height:22px;margin-top:12px;font-size:14px;text-align:center}
+.msg.ok{color:var(--done)} .msg.err{color:var(--pink-deep)}
+.list{margin-top:30px}
+.list h3{font-size:12px;font-weight:500;letter-spacing:.2em;color:var(--t3);padding-bottom:10px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between}
+.list h3 b{font-family:var(--num);font-size:15px;font-weight:400;color:var(--ink);letter-spacing:0}
+.it{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}
+.it .m{flex:1;min-width:0}
+.it .n{font-size:15px}
+.it .p{font-family:var(--num);font-size:15px;color:var(--t2);margin-left:6px}
+.it .d{font-size:12px;color:var(--t3);margin-top:3px}
+.st{font-size:12px;padding:3px 8px;flex:none}
+.st.pending{color:var(--pink-deep);background:var(--pink-bg)}
+.st.done{color:var(--done);background:var(--done-bg)}
+.del{border:1px solid var(--line-2);background:#fff;font-size:12px;padding:4px 10px;color:var(--t3);flex:none}
+.del.sure{border-color:var(--pink-deep);color:var(--pink-deep)}
+.empty{padding:30px 0;text-align:center;color:var(--t4);font-size:13px}
+</style>
+</head>
+<body>
+<div class="top"><img src="logo-ink.png" alt="赫眉 HYMN"><button class="out" id="out" type="button">退出</button></div>
+<div class="wrap">
+  <h2>365金卡登记</h2>
+  <div class="sub">填好提交，总部统一导入系统</div>
+
+  <form class="form" id="f" autocomplete="off">
+    <div class="row"><label>工号</label><input id="no" placeholder="你的工号" maxlength="20" required><span class="tip">会记住</span></div>
+    <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button></div></div>
+    <div class="row"><label>会员姓名</label><input id="name" placeholder="姓名" maxlength="30"></div>
+    <div class="row"><label>手机号</label><input id="phone" class="num" type="tel" inputmode="numeric" placeholder="11 位手机号" maxlength="13" required></div>
+    <div class="row"><label id="dlab">开卡日期</label><input id="date" class="num" type="date" required></div>
+    <button class="go" id="go" type="submit">提交</button>
+    <div class="msg" id="msg"></div>
+  </form>
+
+  <div class="list">
+    <h3><span id="lt">我提交的 · 近 30 天</span><b id="cnt"></b></h3>
+    <div id="items"><div class="empty">填了工号就能看到自己提交过的</div></div>
+  </div>
+</div>
+
+<script src="api.js?v=202611111850"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const today = new Date();
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const nextMonth1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+const ymd = s => s.replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1/$2/$3');
+
+// 刷新不丢：工号、办卡类型一直记着；填了一半的姓名/手机号/日期当天记着
+const KEY = 'c365_store';
+let kind = 'new', dateTouched = false;
+try {
+  const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
+  if (sv.no) $('#no').value = sv.no;
+  if (sv.kind) kind = sv.kind;
+  if (sv.day === iso(today)) { $('#name').value = sv.name || ''; $('#phone').value = sv.phone || ''; if (sv.date) { $('#date').value = sv.date; dateTouched = true; } }
+} catch (e) {}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify({ no: $('#no').value.trim(), kind, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) })); } catch (e) {}
+}
+function paintKind() {
+  document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
+  $('#dlab').textContent = kind === 'renew' ? '续卡起算' : '开卡日期';
+  if (!dateTouched) $('#date').value = iso(kind === 'renew' ? nextMonth1 : today);   // 续卡默认下个月 1 号
+}
+document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { kind = b.dataset.v; dateTouched = false; paintKind(); save(); });
+paintKind();
+
+const phoneOf = () => $('#phone').value.replace(/\D/g, '');
+$('#phone').oninput = () => { $('#phone').classList.toggle('bad', phoneOf().length > 0 && !/^1\d{10}$/.test(phoneOf()) && phoneOf().length >= 11); save(); };
+$('#name').oninput = save;
+$('#date').oninput = () => { dateTouched = true; save(); };
+let lt;
+$('#no').oninput = () => { save(); clearTimeout(lt); lt = setTimeout(load, 500); };
+
+function msg(t, ok) { $('#msg').textContent = t; $('#msg').className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+$('#f').onsubmit = async e => {
+  e.preventDefault();
+  const no = $('#no').value.trim(), phone = phoneOf();
+  if (!no) return msg('请先填工号');
+  if (!/^1\d{10}$/.test(phone)) { $('#phone').classList.add('bad'); return msg('手机号要 11 位'); }
+  if (!$('#date').value) return msg('请选日期');
+  $('#go').disabled = true; msg('');
+  try {
+    await api('/sub', { staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind });
+    msg('已提交：' + ($('#name').value.trim() || phone), true);
+    $('#name').value = ''; $('#phone').value = ''; dateTouched = false; paintKind(); save();
+    load();
+  } catch (err) { msg(err.message); }
+  $('#go').disabled = false;
+};
+
+async function load() {
+  const no = $('#no').value.trim();
+  $('#lt').textContent = no ? `工号 ${no} 提交的 · 近 30 天` : '我提交的 · 近 30 天';
+  if (!no) { $('#items').innerHTML = '<div class="empty">填了工号就能看到自己提交过的</div>'; $('#cnt').textContent = ''; return; }
+  try {
+    const { subs } = await api('/subs?staff_no=' + encodeURIComponent(no));
+    $('#cnt').textContent = subs.length || '';
+    $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
+      <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
+        <div class="d">${s.kind === 'renew' ? '续卡 · 从' : '新开卡 · '}${ymd(s.sdate)}${s.kind === 'renew' ? ' 起' : ''}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+      <span class="st ${s.status}">${s.status === 'done' ? '已导入' : '待处理'}</span>
+      ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
+      : '<div class="empty">还没有提交过</div>';
+    // 删除要点两下，防误触
+    document.querySelectorAll('.del').forEach(b => b.onclick = async () => {
+      if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定删除'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '删除'; }, 3000); return; }
+      try { await api('/sub/del', { id: +b.dataset.id, staff_no: no }); load(); } catch (err) { msg(err.message); }
+    });
+  } catch (err) { $('#items').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+}
+$('#out').onclick = logout;
+api('/me').then(r => { if (r.role !== 'staff' && r.role !== 'op') logout(); load(); }).catch(() => {});
+</script>
+</body>
+</html>
