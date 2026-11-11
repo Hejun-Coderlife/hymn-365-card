@@ -147,6 +147,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 .bar .fn{font-size:13px;color:var(--t2)}
 .toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 22px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.on{opacity:1}
+.opt .dp-btn{border-bottom:1px solid var(--line-2);padding:4px 0 5px;font-size:20px}
 </style>
 </head>
 <body>
@@ -271,13 +272,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="api.js?v=202611111927"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111927"></script>
-<script src="vendor/jszip.min.js?v=202611111927"></script>
-<script src="xls.js?v=202611111927"></script>
-<script src="gen.js?v=202611111927"></script>
+<script src="datepick.js?v=202611111929"></script>
+<script src="api.js?v=202611111929"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111929"></script>
+<script src="vendor/jszip.min.js?v=202611111929"></script>
+<script src="xls.js?v=202611111929"></script>
+<script src="gen.js?v=202611111929"></script>
 <script>
 const $ = s => document.querySelector(s);
+document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today = new Date();
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
