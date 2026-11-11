@@ -109,6 +109,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 .empty{padding:50px;text-align:center;color:var(--t4)}
 
 .bar{position:sticky;bottom:0;margin-top:34px;padding:18px 0;background:rgba(255,255,255,.96);border-top:1px solid var(--line-2);display:flex;align-items:center;gap:18px}
+.how{display:flex;border:1px solid var(--line-2)}
+.how button{border:0;background:#fff;padding:12px 16px;cursor:pointer;font-size:13px;color:var(--t2)}
+.how button+button{border-left:1px solid var(--line-2)}
+.how button.on{background:var(--pink-bg);color:var(--t1);box-shadow:inset 0 -2px 0 var(--ink)}
 .bar .fn{font-size:13px;color:var(--t2)}
 .toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 22px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.on{opacity:1}
@@ -133,7 +137,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
       <h2>365金卡 导入表生成</h2>
-      <p>填姓名和手机号，每个顾客单独导出一个 Excel（.xlsx），多人打包成 zip</p>
+      <p>填姓名和手机号，每个顾客单独一个 Excel（.xlsx），可选建文件夹、压缩或散放</p>
     </div>
   </header>
 
@@ -186,6 +190,11 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </section>
 
   <div class="bar">
+    <div class="how" id="how">
+      <button type="button" data-v="folder">生成文件夹</button>
+      <button type="button" data-v="zip">压缩成 zip</button>
+      <button type="button" data-v="loose">不建文件夹</button>
+    </div>
     <button class="btn pri" id="go" type="button">导出 Excel</button>
     <span class="fn" id="fn"></span>
   </div>
@@ -193,10 +202,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="vendor/xlsx.full.min.js?v=202611111638"></script>
-<script src="vendor/exceljs.min.js?v=202611111638"></script>
-<script src="vendor/jszip.min.js?v=202611111638"></script>
-<script src="gen.js?v=202611111638"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111640"></script>
+<script src="vendor/exceljs.min.js?v=202611111640"></script>
+<script src="vendor/jszip.min.js?v=202611111640"></script>
+<script src="gen.js?v=202611111640"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -207,13 +216,15 @@ $('#date').value = iso(today);
 // 刷新不丢（2026-11-11 用户要求，以后所有网站默认都要有）：
 // 名单原样存在本机 localStorage；开卡日期只在当天恢复，隔天打开自动回到今天，免得用旧日期导出
 const KEY = 'hymn-365-card';
+let how = 'zip';   // 导出方式：folder 生成文件夹 / zip 压缩 / loose 散放在「下载」
 try {
   const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (sv.txt) $('#txt').value = sv.txt;
   if (sv.date && sv.day === iso(today)) $('#date').value = sv.date;
+  if (sv.how) how = sv.how;
 } catch (e) {}
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ txt: $('#txt').value, date: $('#date').value, day: iso(today) })); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ txt: $('#txt').value, date: $('#date').value, day: iso(today), how })); } catch (e) {}
 }
 
 let people = [];      // 识别出的有效名单（已去重）
@@ -294,8 +305,8 @@ function update() {
   $('#go').disabled = !people.length;
   $('#fn').textContent = !people.length ? '还没有可用的手机号' :
     (issues.length ? `有 ${issues.length} 行没识别，导出时不含 · ` : '') +
-    (people.length === 1 ? Gen.fileName(people[0], date) : `${Gen.zipName(people, date)}（里面每人一个表，共 ${people.length} 个）`);
-  return { opt };
+    howText(date);
+  document.querySelectorAll('#how button').forEach(b => b.classList.toggle('on', b.dataset.v === how));  return { opt };
 }
 
 // 读 Excel：每行把所有格子拼成一行文本，交给同一个识别逻辑
@@ -331,6 +342,15 @@ function download(blob, name) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
+const folderName = date => Gen.zipName(people, date).replace(/\.zip$/, '');
+function howText(date) {
+  const n = people.length;
+  if (how === 'zip') return `${Gen.zipName(people, date)}，里面每人一个表，共 ${n} 个`;
+  if (how === 'folder') return (window.showDirectoryPicker ? '' : '⚠ 这个浏览器不支持，请用 Chrome / Edge · ') + `选个位置，新建「${folderName(date)}」文件夹，放 ${n} 个表`;
+  return `${n} 个表直接存进「下载」文件夹` + (n > 1 ? '（Chrome 第一次会问「允许下载多个文件」，点允许）' : '');
+}
+document.querySelectorAll('#how button').forEach(b => b.onclick = () => { how = b.dataset.v; update(); });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 $('#go').onclick = async () => {
   const { opt } = update();
@@ -338,20 +358,34 @@ $('#go').onclick = async () => {
   const btn = $('#go'); btn.disabled = true;
   try {
     const one = async p => Gen.buildWorkbook(ExcelJS, [p], opt).wb.xlsx.writeBuffer();
-    if (people.length === 1) {
-      download(new Blob([await one(people[0])], { type: XLSX_MIME }), Gen.fileName(people[0], opt.date));
-      toast('已导出，在「下载」文件夹');
-    } else {
-      const zip = new JSZip();
+    const prog = i => { btn.textContent = `生成中 ${i + 1}/${people.length}`; };
+    if (how === 'folder') {
+      if (!window.showDirectoryPicker) throw new Error('这个浏览器不支持建文件夹，请用 Chrome / Edge，或改选「压缩成 zip」');
+      let root;
+      try { root = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'downloads' }); }
+      catch (e) { if (e.name === 'AbortError') return; throw e; }
+      const dir = await root.getDirectoryHandle(folderName(opt.date), { create: true });
       for (let i = 0; i < people.length; i++) {
-        btn.textContent = `生成中 ${i + 1}/${people.length}`;
-        zip.file(Gen.fileName(people[i], opt.date), await one(people[i]));
+        prog(i);
+        const fh = await dir.getFileHandle(Gen.fileName(people[i], opt.date), { create: true });
+        const w = await fh.createWritable(); await w.write(await one(people[i])); await w.close();
       }
+      toast(`已在「${root.name}」里建好「${folderName(opt.date)}」，共 ${people.length} 个表`);
+    } else if (how === 'zip') {
+      const zip = new JSZip();
+      for (let i = 0; i < people.length; i++) { prog(i); zip.file(Gen.fileName(people[i], opt.date), await one(people[i])); }
       download(await zip.generateAsync({ type: 'blob' }), Gen.zipName(people, opt.date));
-      toast(`已导出 ${people.length} 个表（zip），在「下载」文件夹`);
+      toast(`已导出 zip，共 ${people.length} 个表，在「下载」文件夹`);
+    } else {
+      for (let i = 0; i < people.length; i++) {
+        prog(i);
+        download(new Blob([await one(people[i])], { type: XLSX_MIME }), Gen.fileName(people[i], opt.date));
+        await sleep(300);   // 连着点太快浏览器会吞掉一部分下载
+      }
+      toast(`已导出 ${people.length} 个表，在「下载」文件夹`);
     }
   } catch (e) { toast('导出出错：' + e.message); }
-  btn.textContent = '导出 Excel'; btn.disabled = false;
+  finally { btn.textContent = '导出 Excel'; btn.disabled = false; }
 };
 
 let tt;
