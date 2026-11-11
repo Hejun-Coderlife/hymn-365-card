@@ -59,12 +59,19 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .del.sure{border-color:var(--pink-deep);color:var(--pink-deep)}
 .empty{padding:30px 0;text-align:center;color:var(--t4);font-size:13px}
 .row .dp-btn{font-size:19px}
+.gsw{display:inline-block;
+  /* 跟操作员页侧栏「365 金卡」同一道金光（黑字上淡金光每 5 秒扫过一次），2026-11-11 用户要店员版也加 */
+  background:linear-gradient(100deg,#16140F 0%,#16140F 40%,#C9A15A 48%,#F0D9A8 50%,#C9A15A 52%,#16140F 60%,#16140F 100%);
+  background-size:300% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:gsw 5s ease-in-out 0.8s infinite}
+@keyframes gsw{0%{background-position:100% 0}40%,100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.gsw{animation:none;color:#16140F;background:none}}
 </style>
 </head>
 <body>
 <div class="top"><img src="logo-ink.png" alt="赫眉 HYMN"><button class="out" id="out" type="button">退出</button></div>
 <div class="wrap">
-  <h2>365金卡登记</h2>
+  <h2><span class="gsw">365金卡</span>登记</h2>
   <div class="sub">填好提交，总部统一导入系统</div>
 
   <form class="form" id="f" autocomplete="off">
@@ -84,12 +91,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="fx.js?v=202611111955"></script>
+<script src="fx.js?v=202611111956"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611111955"></script>
-<script src="xsel.js?v=202611111955"></script>
-<script src="datepick.js?v=202611111955"></script>
-<script src="api.js?v=202611111955"></script>
+<script src="stores.js?v=202611111956"></script>
+<script src="xsel.js?v=202611111956"></script>
+<script src="datepick.js?v=202611111956"></script>
+<script src="api.js?v=202611111956"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
