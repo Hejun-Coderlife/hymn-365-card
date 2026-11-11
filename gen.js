@@ -96,14 +96,17 @@
     return { wb, rows };
   }
 
-  function fileName(people, date) {
-    const d = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-    const names = people.map(p => p.name || p.phone);
-    const who = names.length <= 3 ? names.join('、') : `${names.slice(0, 2).join('、')}等${names.length}人`;
-    return `365金卡_${who}_${d}.xlsx`;
+  // 每个顾客单独一个文件（2026-11-11 用户要求「每个人单独一个表，不要做到一起」）
+  const dstr = date => `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+  const safe = t => String(t).replace(/[\\/:*?"<>|]/g, '');
+  function fileName(p, date) {
+    return `365金卡_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xlsx`;
+  }
+  function zipName(people, date) {
+    return `365金卡_${people.length}人_${dstr(date)}.zip`;
   }
 
-  const api = { voucherNo, buildRows, buildWorkbook, fileName, ymd, addMonths, WASH, CASH };
+  const api = { voucherNo, buildRows, buildWorkbook, fileName, zipName, ymd, addMonths, WASH, CASH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Gen = api;
 })(this);

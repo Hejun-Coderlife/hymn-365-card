@@ -133,7 +133,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
       <h2>365金卡 导入表生成</h2>
-      <p>填姓名和手机号，一键导出系统导入用的 Excel（.xlsx）</p>
+      <p>填姓名和手机号，每个顾客单独导出一个 Excel（.xlsx），多人打包成 zip</p>
     </div>
   </header>
 
@@ -193,9 +193,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="vendor/xlsx.full.min.js"></script>
-<script src="vendor/exceljs.min.js"></script>
-<script src="gen.js"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111638"></script>
+<script src="vendor/exceljs.min.js?v=202611111638"></script>
+<script src="vendor/jszip.min.js?v=202611111638"></script>
+<script src="gen.js?v=202611111638"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -292,7 +293,8 @@ function update() {
 
   $('#go').disabled = !people.length;
   $('#fn').textContent = !people.length ? '还没有可用的手机号' :
-    (issues.length ? `有 ${issues.length} 行没识别，导出时不含 · ` : '') + Gen.fileName(people, date);
+    (issues.length ? `有 ${issues.length} 行没识别，导出时不含 · ` : '') +
+    (people.length === 1 ? Gen.fileName(people[0], date) : `${Gen.zipName(people, date)}（里面每人一个表，共 ${people.length} 个）`);
   return { opt };
 }
 
@@ -322,17 +324,34 @@ const drop = $('#drop');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
 $('#date').oninput = update;
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 $('#go').onclick = async () => {
   const { opt } = update();
   if (!people.length) return;
-  const { wb } = Gen.buildWorkbook(ExcelJS, people, opt);
-  const buf = await wb.xlsx.writeBuffer();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = Gen.fileName(people, opt.date);
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast('已导出，在「下载」文件夹');
+  const btn = $('#go'); btn.disabled = true;
+  try {
+    const one = async p => Gen.buildWorkbook(ExcelJS, [p], opt).wb.xlsx.writeBuffer();
+    if (people.length === 1) {
+      download(new Blob([await one(people[0])], { type: XLSX_MIME }), Gen.fileName(people[0], opt.date));
+      toast('已导出，在「下载」文件夹');
+    } else {
+      const zip = new JSZip();
+      for (let i = 0; i < people.length; i++) {
+        btn.textContent = `生成中 ${i + 1}/${people.length}`;
+        zip.file(Gen.fileName(people[i], opt.date), await one(people[i]));
+      }
+      download(await zip.generateAsync({ type: 'blob' }), Gen.zipName(people, opt.date));
+      toast(`已导出 ${people.length} 个表（zip），在「下载」文件夹`);
+    }
+  } catch (e) { toast('导出出错：' + e.message); }
+  btn.textContent = '导出 Excel'; btn.disabled = false;
 };
 
 let tt;
