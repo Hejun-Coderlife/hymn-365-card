@@ -41,11 +41,12 @@
   const voucherNo = (date, phone, k) => '365' + String(date.getFullYear()).slice(-2) + phone + pad(k);
 
   // people: [{name, phone}]；返回每行的纯数据，预览和导出都用它
+  // 每个人可以有自己的起算日 p.date（名单里那行写了日期），没写就用整批的 opt.date（2026-11-11 用户要求）
   function buildRows(people, opt) {
-    const start = opt.date, end = addMonths(start, 12);
     const rows = [];
-    const wash = washPeriods(start, opt.mode);
     for (const p of people) {
+      const start = p.date || opt.date, end = addMonths(start, 12);
+      const wash = washPeriods(start, opt.mode);
       let k = 1;
       const no = () => voucherNo(start, p.phone, k++);
       for (let i = 0; i < WASH; i++) {
