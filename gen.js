@@ -60,24 +60,39 @@
     return rows;
   }
 
-  function buildWorkbook(XLSX, people, opt) {
+  // 导出用 ExcelJS 出 .xlsx：标题行浅灰 + 冻结 + 筛选（2026-11-11 用户定，所有表格都要这样）。
+  // 旧 .xls(biff8) 写不了这些样式，所以从 .xls 改成了 .xlsx。
+  function styleSheet(ws, widths) {
+    widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    ws.getRow(1).eachCell(c => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+      c.font = { bold: true, color: { argb: 'FF333333' }, size: 11 };
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+    });
+    ws.eachRow(row => { row.height = 20; });
+    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(ws.rowCount, 1), column: widths.length } };
+  }
+
+  function buildWorkbook(ExcelJS, people, opt) {
     const rows = buildRows(people, opt);
-    const head = ['活动名称', '代金券号', '券面值', '可使用对象', '可使用对象编号', '会员编号', '开始日期', '截至日期',
-      '取价规则', '使用场景', '可使用门店类型', '可使用门店编号', '需购满额', '取价规则'];
-    const dt = d => ({ t: 'n', v: serial(d), z: 'yyyy/m/d' });
-    const aoa = [head].concat(rows.map(r => [r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), dt(r.s), dt(r.e),
+    const wb = new ExcelJS.Workbook();
+
+    const ws1 = wb.addWorksheet('代金券');
+    ws1.addRow(['活动名称', '代金券号', '券面值', '可使用对象', '可使用对象编号', '会员编号', '开始日期', '截至日期',
+      '取价规则', '使用场景', '可使用门店类型', '可使用门店编号', '需购满额', '取价规则']);
+    rows.forEach(r => ws1.addRow([r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), serial(r.s), serial(r.e),
       r.rule, r.scene, null, null, r.min, r.rule]));
-    const ws1 = XLSX.utils.aoa_to_sheet(aoa);
-    ws1['!cols'] = [18, 22, 8, 11, 13, 14, 12, 12, 9, 11, 13, 13, 9, 9].map(w => ({ wch: w }));
+    ws1.getColumn(7).numFmt = 'yyyy/m/d';
+    ws1.getColumn(8).numFmt = 'yyyy/m/d';
+    ws1.getColumn(6).numFmt = '0';
+    styleSheet(ws1, [18, 22, 9, 12, 15, 14, 12, 12, 10, 12, 15, 15, 10, 10]);
 
-    const ws2 = XLSX.utils.aoa_to_sheet([['会员编号', '卡项编号', '项目编号', '购买金额', '数量']]
-      .concat(people.map(p => [String(p.phone), '1071', '1071', 0, 3])));
-    ws2['!cols'] = [14, 10, 10, 10, 8].map(w => ({ wch: w }));
+    const ws2 = wb.addWorksheet('3次护理导入');
+    ws2.addRow(['会员编号', '卡项编号', '项目编号', '购买金额', '数量']);
+    people.forEach(p => ws2.addRow([String(p.phone), '1071', '1071', 0, 3]));
+    styleSheet(ws2, [14, 10, 10, 10, 8]);
 
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws1, '代金券');
-    XLSX.utils.book_append_sheet(wb, ws2, '3次护理导入');
     return { wb, rows };
   }
 
@@ -85,7 +100,7 @@
     const d = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
     const names = people.map(p => p.name || p.phone);
     const who = names.length <= 3 ? names.join('、') : `${names.slice(0, 2).join('、')}等${names.length}人`;
-    return `365金卡_${who}_${d}.xls`;
+    return `365金卡_${who}_${d}.xlsx`;
   }
 
   const api = { voucherNo, buildRows, buildWorkbook, fileName, ymd, addMonths, WASH, CASH };

@@ -133,7 +133,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
       <h2>365金卡 导入表生成</h2>
-      <p>填姓名和手机号，一键导出系统导入用的 Excel（.xls）</p>
+      <p>填姓名和手机号，一键导出系统导入用的 Excel（.xlsx）</p>
     </div>
   </header>
 
@@ -194,6 +194,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 <div class="toast" id="toast"></div>
 
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/exceljs.min.js"></script>
 <script src="gen.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -321,11 +322,16 @@ const drop = $('#drop');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
 $('#date').oninput = update;
-$('#go').onclick = () => {
+$('#go').onclick = async () => {
   const { opt } = update();
   if (!people.length) return;
-  const { wb } = Gen.buildWorkbook(XLSX, people, opt);
-  XLSX.writeFile(wb, Gen.fileName(people, opt.date), { bookType: 'biff8' });
+  const { wb } = Gen.buildWorkbook(ExcelJS, people, opt);
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = Gen.fileName(people, opt.date);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast('已导出，在「下载」文件夹');
 };
 
