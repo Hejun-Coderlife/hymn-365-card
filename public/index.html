@@ -247,19 +247,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </section>
 
   <section class="sec">
-    <h3>规则 <span class="hint" style="letter-spacing:0">只有新开卡 / 续卡和日期能改，其余是说明</span></h3>
+    <h3>规则</h3>
     <div class="opts">
       <div class="opt">
-        <div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button></div>
-        <div id="newBox">
-          <label class="dl">开卡日期</label>
-          <input type="date" id="date">
-        </div>
-        <div id="renewBox" hidden>
-          <label class="dl">续卡从哪天算</label>
-          <input type="date" id="rdate">
-        </div>
+        <!-- 2026-11-11 用户：新开卡/续卡切换和改日期「没必要」，去掉。日期一律：没写按当天，写了按写的 -->
+        <label>日期</label>
+        <div class="rule"><b>没写</b><i>按当天</i><b>写了</b><i>按写的</i></div>
         <div class="sub" id="dateSub"></div>
+        <input type="hidden" id="date"><input type="hidden" id="rdate">
       </div>
       <div class="opt">
         <label>券号规则</label>
@@ -283,7 +278,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div class="how" id="how">
       <button type="button" data-v="folder">生成文件夹</button>
       <button type="button" data-v="zip">压缩成 zip</button>
-      <button type="button" data-v="loose">不建文件夹</button>
+      <button type="button" data-v="loose">直接导出</button>
     </div>
     <button class="btn pri" id="go" type="button">导出 Excel</button>
     <span class="fn" id="fn"></span>
@@ -344,15 +339,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611111958"></script>
-<script src="report.js?v=202611111958"></script>
-<script src="xsel.js?v=202611111958"></script>
-<script src="datepick.js?v=202611111958"></script>
-<script src="api.js?v=202611111958"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111958"></script>
-<script src="vendor/jszip.min.js?v=202611111958"></script>
-<script src="xls.js?v=202611111958"></script>
-<script src="gen.js?v=202611111958"></script>
+<script src="stores.js?v=202611112003"></script>
+<script src="report.js?v=202611112003"></script>
+<script src="xsel.js?v=202611112003"></script>
+<script src="datepick.js?v=202611112003"></script>
+<script src="api.js?v=202611112003"></script>
+<script src="vendor/xlsx.full.min.js?v=202611112003"></script>
+<script src="vendor/jszip.min.js?v=202611112003"></script>
+<script src="xls.js?v=202611112003"></script>
+<script src="gen.js?v=202611112003"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -369,9 +364,6 @@ let renew = false;  // 续卡：券和洗脸巾从「续卡从哪天算」开始
 try {
   const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (sv.txt) $('#txt').value = sv.txt;
-  if (sv.date && sv.day === iso(today)) $('#date').value = sv.date;
-  if (sv.rdate && sv.day === iso(today)) $('#rdate').value = sv.rdate;
-  if (sv.renew) renew = true;
   if (sv.how) how = sv.how;
 } catch (e) {}
 function save() {
@@ -447,10 +439,7 @@ function update() {
     return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:${p.date ? 'var(--pink-deep)' : 'var(--t3)'}" title="${p.date ? '这一行自己写的日期' : '用统一日期'}">${Gen.ymd(p.date || date)} 起${p.renew ? ' · 续卡' : ''}</td></tr>`;
   }).join('') + '</tbody></table>' : '<div class="empty">← 在左边粘贴名单<br>这里会列出认出来的每个人，方便核对</div>';
 
-  $('#dateSub').textContent = `代金券有效期 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}` + (renew ? '（按续卡日期算）' : '');
-  document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', (b.dataset.v === 'renew') === renew));
-  $('#renewBox').hidden = !renew;
-  $('#newBox').hidden = renew;
+  $('#dateSub').textContent = `今天开卡：代金券 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}；行里写了「续卡」没写日期的，按下月 1 号`;
   $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
   const w = Gen.buildRows([{ phone: '0' }], opt);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
@@ -527,7 +516,6 @@ const drop = $('#drop');
 ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); drop.classList.add('over'); } }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
-$('#date').oninput = update;
 function download(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -537,8 +525,6 @@ function download(blob, name) {
 }
 const fname = (p, date) => Gen.fileName(p, date, renew || p.renew);
 const zname = (ps, date) => Gen.zipName(ps, date, renew);
-document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { renew = b.dataset.v === 'renew'; update(); });
-$('#rdate').oninput = update;
 const folderName = date => zname(people, date).replace(/\.zip$/, '');
 function howText(date) {
   const n = people.length;
@@ -713,7 +699,7 @@ $('#subRef').onclick = loadSubs;
 // 页面上做的事记进操作记录（离线双击打开时没有服务器，跳过）
 function logAct(act, info) { if (location.protocol !== 'file:') api('/log', { act, info }).catch(() => {}); }
 function logExport(mode) {
-  const M = { folder: '生成文件夹', zip: '压缩 zip', loose: '散放进下载' };
+  const M = { folder: '生成文件夹', zip: '压缩 zip', loose: '直接导出' };
   logAct('export', `导出 ${people.length} 人（${M[mode]}）：` + people.map(p => `${p.name || ''} ${p.phone} ${Gen.ymd(p.date || curDate())}${(renew || p.renew) ? ' 续卡' : ''}`).join('、'));
 }
 async function markExported() {
