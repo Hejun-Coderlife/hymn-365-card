@@ -139,7 +139,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
       <h2>365金卡 导入表生成</h2>
-      <p>填姓名和手机号，每个顾客单独一个 Excel（.xlsx），可选建文件夹、压缩或散放</p>
+      <p>填姓名和手机号，每个顾客单独一个 Excel（.xls），可选建文件夹、压缩或散放</p>
     </div>
   </header>
 
@@ -205,10 +205,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="vendor/xlsx.full.min.js?v=202611111648"></script>
-<script src="vendor/exceljs.min.js?v=202611111648"></script>
-<script src="vendor/jszip.min.js?v=202611111648"></script>
-<script src="gen.js?v=202611111648"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111655"></script>
+<script src="vendor/jszip.min.js?v=202611111655"></script>
+<script src="xls.js?v=202611111655"></script>
+<script src="gen.js?v=202611111655"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -382,13 +382,13 @@ async function getRoot(change) {
 }
 $('#chg').onclick = async () => { try { if (await getRoot(true)) toast(`以后存到「${rootName}」`); } catch (e) { toast('换位置出错：' + e.message); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLS_MIME = 'application/vnd.ms-excel';
 $('#go').onclick = async () => {
   const { opt } = update();
   if (!people.length) return;
   const btn = $('#go'); btn.disabled = true;
   try {
-    const one = async p => Gen.buildWorkbook(ExcelJS, [p], opt).wb.xlsx.writeBuffer();
+    const one = async p => Gen.buildXls(XLSX, XLS, [p], opt);
     const prog = i => { btn.textContent = `生成中 ${i + 1}/${people.length}`; };
     if (how === 'folder') {
       if (!window.showDirectoryPicker) throw new Error('这个浏览器不支持建文件夹，请用 Chrome / Edge，或改选「压缩成 zip」');
@@ -409,7 +409,7 @@ $('#go').onclick = async () => {
     } else {
       for (let i = 0; i < people.length; i++) {
         prog(i);
-        download(new Blob([await one(people[i])], { type: XLSX_MIME }), Gen.fileName(people[i], opt.date));
+        download(new Blob([await one(people[i])], { type: XLS_MIME }), Gen.fileName(people[i], opt.date));
         await sleep(300);   // 连着点太快浏览器会吞掉一部分下载
       }
       toast(`已导出 ${people.length} 个表，在「下载」文件夹`);

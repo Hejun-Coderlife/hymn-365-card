@@ -60,53 +60,34 @@
     return rows;
   }
 
-  // 导出用 ExcelJS 出 .xlsx：标题行浅灰 + 冻结 + 筛选（2026-11-11 用户定，所有表格都要这样）。
-  // 旧 .xls(biff8) 写不了这些样式，所以从 .xls 改成了 .xlsx。
-  function styleSheet(ws, widths) {
-    widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
-    ws.getRow(1).eachCell(c => {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
-      c.font = { bold: true, color: { argb: 'FF333333' }, size: 11 };
-      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
-    });
-    ws.eachRow(row => { row.height = 20; });
-    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
-    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(ws.rowCount, 1), column: widths.length } };
-  }
-
-  function buildWorkbook(ExcelJS, people, opt) {
+  // 导出 .xls（用户：必须是 xls）。样式（标题浅灰加粗 + 冻结 + 筛选）由自写的 xls.js 负责，
+  // 因为 SheetJS 社区版写 xls 不带样式、ExcelJS 只能写 xlsx。返回 Uint8Array。
+  function buildXls(XLSX, XLS, people, opt) {
     const rows = buildRows(people, opt);
-    const wb = new ExcelJS.Workbook();
-
-    const ws1 = wb.addWorksheet('代金券');
-    ws1.addRow(['活动名称', '代金券号', '券面值', '可使用对象', '可使用对象编号', '会员编号', '开始日期', '截至日期',
-      '取价规则', '使用场景', '可使用门店类型', '可使用门店编号', '需购满额', '取价规则']);
-    rows.forEach(r => ws1.addRow([r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), serial(r.s), serial(r.e),
-      r.rule, r.scene, null, null, r.min, r.rule]));
-    ws1.getColumn(7).numFmt = 'yyyy/m/d';
-    ws1.getColumn(8).numFmt = 'yyyy/m/d';
-    ws1.getColumn(6).numFmt = '0';
-    styleSheet(ws1, [18, 22, 9, 12, 15, 14, 12, 12, 10, 12, 15, 15, 10, 10]);
-
-    const ws2 = wb.addWorksheet('3次护理导入');
-    ws2.addRow(['会员编号', '卡项编号', '项目编号', '购买金额', '数量']);
-    people.forEach(p => ws2.addRow([String(p.phone), '1071', '1071', 0, 3]));
-    styleSheet(ws2, [14, 10, 10, 10, 8]);
-
-    return { wb, rows };
+    const d = x => ({ date: serial(x) });
+    const s1 = [['活动名称', '代金券号', '券面值', '可使用对象', '可使用对象编号', '会员编号', '开始日期', '截至日期',
+      '取价规则', '使用场景', '可使用门店类型', '可使用门店编号', '需购满额', '取价规则']]
+      .concat(rows.map(r => [r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), d(r.s), d(r.e),
+        r.rule, r.scene, null, null, r.min, r.rule]));
+    const s2 = [['会员编号', '卡项编号', '项目编号', '购买金额', '数量']]
+      .concat(people.map(p => [String(p.phone), '1071', '1071', 0, 3]));
+    return XLS.write(XLSX.CFB, [
+      { name: '代金券', widths: [18, 22, 9, 12, 15, 14, 12, 12, 10, 12, 15, 15, 10, 10], rows: s1 },
+      { name: '3次护理导入', widths: [14, 10, 10, 10, 8], rows: s2 },
+    ]);
   }
 
   // 每个顾客单独一个文件（2026-11-11 用户要求「每个人单独一个表，不要做到一起」）
   const dstr = date => `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   const safe = t => String(t).replace(/[\\/:*?"<>|]/g, '');
   function fileName(p, date) {
-    return `365金卡_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xlsx`;
+    return `365金卡_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xls`;
   }
   function zipName(people, date) {
     return `365金卡_${people.length}人_${dstr(date)}.zip`;
   }
 
-  const api = { voucherNo, buildRows, buildWorkbook, fileName, zipName, ymd, addMonths, WASH, CASH };
+  const api = { voucherNo, buildRows, buildXls, fileName, zipName, ymd, addMonths, WASH, CASH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Gen = api;
 })(this);
