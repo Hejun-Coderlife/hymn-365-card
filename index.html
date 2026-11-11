@@ -193,10 +193,6 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     </div>
   </section>
 
-  <section class="sec">
-    <h3>概览</h3>
-    <div class="tiles" id="tiles"></div>
-  </section>
 
   <section class="sec">
     <h3>代金券页预览 <span class="hint" id="pvHint" style="letter-spacing:0"></span></h3>
@@ -217,10 +213,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="vendor/xlsx.full.min.js?v=202611111710"></script>
-<script src="vendor/jszip.min.js?v=202611111710"></script>
-<script src="xls.js?v=202611111710"></script>
-<script src="gen.js?v=202611111710"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111720"></script>
+<script src="vendor/jszip.min.js?v=202611111720"></script>
+<script src="xls.js?v=202611111720"></script>
+<script src="gen.js?v=202611111720"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -306,11 +302,6 @@ function update() {
     <div><i>…</i>每张都是 1 号到月底</div>
     <div><i>第 12 张</i>${Gen.ymd(w[11].s)} – ${md(w[11].e)}</div>`;
 
-  $('#tiles').innerHTML = `
-    <div class="tile"><div class="k">会员</div><div class="v">${people.length}<small>人</small></div></div>
-    <div class="tile"><div class="k">代金券行数</div><div class="v">${total}<small>行</small></div></div>
-    <div class="tile"><div class="k">每人券数</div><div class="v">${per}<small>张 · 洗脸巾 ${Gen.WASH} + 代金券 ${Gen.CASH}</small></div></div>
-    <div class="tile"><div class="k">有效至</div><div class="v pk" style="font-size:22px;line-height:1.9">${Gen.ymd(oneYear)}</div></div>`;
 
   // 预览只放第 1 个人的 42 行，100 人全铺开没法看；其余人格式完全一样
   if (!people.length) {
