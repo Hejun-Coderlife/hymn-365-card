@@ -25,6 +25,8 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .row input{flex:1;border:0;outline:none;padding:14px 0;font-size:17px;background:transparent;min-width:0}
 .row input::placeholder{color:var(--t4)}
 .row input.num{font-family:var(--num);font-size:19px}
+.row select{flex:1;border:0;outline:none;padding:14px 0;font-size:17px;background:transparent;min-width:0;-webkit-appearance:none;appearance:none;color:var(--ink)}
+.row select:invalid{color:var(--t4)}
 .row .tip{font-size:12px;color:var(--t3);margin-left:8px;flex:none}
 .seg{display:flex;flex:1;border:1px solid var(--line-2)}
 .seg button{flex:1;border:0;background:#fff;padding:10px 4px;font-size:15px;color:var(--t2)}
@@ -59,6 +61,7 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   <div class="sub">填好提交，总部统一导入系统</div>
 
   <form class="form" id="f" autocomplete="off">
+    <div class="row"><label>门店</label><select id="store" required><option value="">选你的门店</option></select><span class="tip">会记住</span></div>
     <div class="row"><label>工号</label><input id="no" placeholder="你的工号" maxlength="20" required><span class="tip">会记住</span></div>
     <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button></div></div>
     <div class="row"><label>会员姓名</label><input id="name" placeholder="姓名" maxlength="30"></div>
@@ -74,11 +77,14 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
+<script src="stores.js?v=0"></script>
 <script src="datepick.js?v=202611111929"></script>
 <script src="api.js?v=202611111929"></script>
 <script>
 const $ = s => document.querySelector(s);
-document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
+document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
+// 门店下拉：按区域经理分组
+$('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));   // 中文日历（浏览器自带的跟系统语言走）
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const today = new Date();
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -91,11 +97,12 @@ let kind = 'new', dateTouched = false;
 try {
   const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (sv.no) $('#no').value = sv.no;
+  if (sv.store && STORE_MGR[sv.store]) $('#store').value = sv.store;
   if (sv.kind) kind = sv.kind;
   if (sv.day === iso(today)) { $('#name').value = sv.name || ''; $('#phone').value = sv.phone || ''; if (sv.date) { $('#date').value = sv.date; dateTouched = true; } }
 } catch (e) {}
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ no: $('#no').value.trim(), kind, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) })); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ no: $('#no').value.trim(), store: $('#store').value, kind, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) })); } catch (e) {}
 }
 function paintKind() {
   document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
@@ -108,6 +115,7 @@ paintKind();
 const phoneOf = () => $('#phone').value.replace(/\D/g, '');
 $('#phone').oninput = () => { $('#phone').classList.toggle('bad', phoneOf().length > 0 && !/^1\d{10}$/.test(phoneOf()) && phoneOf().length >= 11); save(); };
 $('#name').oninput = save;
+$('#store').onchange = save;
 $('#date').oninput = () => { dateTouched = true; save(); };
 let lt;
 $('#no').oninput = () => { save(); clearTimeout(lt); lt = setTimeout(load, 500); };
@@ -117,12 +125,13 @@ function msg(t, ok) { $('#msg').textContent = t; $('#msg').className = 'msg ' + 
 $('#f').onsubmit = async e => {
   e.preventDefault();
   const no = $('#no').value.trim(), phone = phoneOf();
+  if (!$('#store').value) return msg('请先选门店');
   if (!no) return msg('请先填工号');
   if (!/^1\d{10}$/.test(phone)) { $('#phone').classList.add('bad'); return msg('手机号要 11 位'); }
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind });
+    await api('/sub', { staff_no: no, store: $('#store').value, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
     $('#name').value = ''; $('#phone').value = ''; dateTouched = false; paintKind(); save();
     load();
@@ -139,7 +148,7 @@ async function load() {
     $('#cnt').textContent = subs.length || '';
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
-        <div class="d">${s.kind === 'renew' ? '续卡 · 从' : '新开卡 · '}${ymd(s.sdate)}${s.kind === 'renew' ? ' 起' : ''}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+        <div class="d">${s.store ? esc(s.store) + ' · ' : ''}${s.kind === 'renew' ? '续卡 · 从' : '新开卡 · '}${ymd(s.sdate)}${s.kind === 'renew' ? ' 起' : ''}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
       <span class="st ${s.status}">${s.status === 'done' ? '已导入' : '待处理'}</span>
       ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
       : '<div class="empty">还没有提交过</div>';

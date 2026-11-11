@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS subs (
   sdate    TEXT NOT NULL,     -- 起算日 YYYY-MM-DD（新开卡=开卡日，续卡=续卡从哪天算）
   kind     TEXT NOT NULL,     -- new / renew
   staff_no TEXT NOT NULL,     -- 工号
+  store    TEXT,              -- 门店（2026-11-11 加，战报按门店筛）
   created  INTEGER NOT NULL,
   did      INTEGER,
   status   TEXT NOT NULL DEFAULT 'pending',
@@ -53,5 +54,14 @@ CREATE TABLE IF NOT EXISTS audit (
   at   INTEGER NOT NULL,
   role TEXT,
   act  TEXT NOT NULL,
-  info TEXT
+  info TEXT,
+  dev  TEXT,     -- 设备（型号 · 浏览器）
+  ip   TEXT
 );
+
+-- 不可删除（2026-11-11 用户：任何提交或删除的记录都要留下，不可删除）
+-- 操作记录不能删也不能改；提交记录不能删，内容（姓名/手机/日期/工号/门店/提交时间）不能改，只能改状态
+CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, '操作记录不能删除'); END;
+CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, '操作记录不能修改'); END;
+CREATE TRIGGER IF NOT EXISTS subs_no_delete BEFORE DELETE ON subs BEGIN SELECT RAISE(ABORT, '提交记录不能删除'); END;
+CREATE TRIGGER IF NOT EXISTS subs_no_edit BEFORE UPDATE OF name, phone, sdate, kind, staff_no, store, created ON subs BEGIN SELECT RAISE(ABORT, '提交记录内容不能修改'); END;

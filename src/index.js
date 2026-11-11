@@ -30,8 +30,11 @@ function sameStr(a, b) { if (a.length !== b.length) return false; let r = 0; for
 function cookie(req, name) { const m = (req.headers.get('Cookie') || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)')); return m ? m[1] : ''; }
 async function body(req) { try { return await req.json(); } catch (e) { throw bad('请求格式不对'); } }
 const str = (v, max) => String(v == null ? '' : v).trim().slice(0, max || 100);
-async function audit(db, role, act, info) {
-  await db.prepare('INSERT INTO audit (at, role, act, info) VALUES (?, ?, ?, ?)').bind(Date.now(), role || null, act, info ? String(info).slice(0, 300) : null).run();
+// 操作记录：只增不删（库里有触发器，DELETE / UPDATE 都会被拒，2026-11-11 用户要求「不可删除」）。
+// 每条带设备（从 User-Agent 看出来的型号 · 浏览器）和 IP
+async function audit(req, db, role, act, info) {
+  await db.prepare('INSERT INTO audit (at, role, act, info, dev, ip) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(Date.now(), role || null, act, info ? String(info).slice(0, 4000) : null, deviceLabel(req.headers.get('User-Agent')), req.headers.get('CF-Connecting-IP') || null).run();
 }
 function deviceLabel(ua) {
   ua = String(ua || '');
@@ -64,9 +67,9 @@ async function bindDevice(req, db, u, now) {
   const out = all.slice(u.dev_limit || 5);
   for (const x of out) {
     await db.batch([db.prepare('DELETE FROM sessions WHERE did = ?').bind(x.id), db.prepare('DELETE FROM devices WHERE id = ?').bind(x.id)]);
-    await audit(db, u.role, 'device_kick', '超过 ' + (u.dev_limit || 5) + ' 台，挤掉 ' + x.label);
+    await audit(req, db, u.role, 'device_kick', '超过 ' + (u.dev_limit || 5) + ' 台，挤掉 ' + x.label);
   }
-  await audit(db, u.role, 'device_new', label);
+  await audit(req, db, u.role, 'device_new', label);
   return { did: r.meta.last_row_id, setCookie };
 }
 
@@ -82,9 +85,11 @@ function checkSub(b) {
   const staff_no = str(b.staff_no, 20);
   if (!staff_no) throw bad('请填工号');
   const name = str(b.name, 30).replace(/[\r\n\t]/g, ' ');
-  return { name, phone, sdate, kind, staff_no };
+  const store = str(b.store, 30);
+  if (!store) throw bad('请选门店');
+  return { name, phone, sdate, kind, staff_no, store };
 }
-const SUB_COLS = 'id, name, phone, sdate, kind, staff_no, created, status, done_at, del_at, del_by';
+const SUB_COLS = 'id, name, phone, sdate, kind, staff_no, store, created, status, done_at, del_at, del_by';
 
 async function handle(req, env) {
   const url = new URL(req.url), p = url.pathname.replace(/^\/api/, ''), db = env.DB, now = Date.now();
@@ -95,25 +100,31 @@ async function handle(req, env) {
     const u = await db.prepare('SELECT * FROM users WHERE role = ?').bind(str(b.role, 10)).first();
     const generic = new HttpError(401, '密码不对');
     if (!u) throw generic;
+    if (u.lock_until > now) await audit(req, db, u.role, 'login_locked', '锁定中还在尝试');
     if (u.lock_until > now) throw new HttpError(429, '输错太多次，' + Math.ceil((u.lock_until - now) / 60000) + ' 分钟后再试');
     if (!sameStr(await pbkdf2(String(b.password || ''), u.salt), u.hash)) {
       const f = u.fails + 1;
       await db.prepare('UPDATE users SET fails = ?, lock_until = ? WHERE id = ?').bind(f >= 5 ? 0 : f, f >= 5 ? now + 10 * 60000 : 0, u.id).run();
-      if (f >= 5) await audit(db, u.role, 'locked', '连续输错 5 次');
+      await audit(req, db, u.role, 'login_fail', '密码不对（第 ' + f + ' 次）');
+      if (f >= 5) await audit(req, db, u.role, 'locked', '连续输错 5 次，锁 10 分钟');
       throw generic;
     }
     await db.batch([db.prepare('UPDATE users SET fails = 0, lock_until = 0 WHERE id = ?').bind(u.id), db.prepare('DELETE FROM sessions WHERE expires < ?').bind(now)]);
     const dv = await bindDevice(req, db, u, now);
     const token = randHex(32);
     await db.prepare('INSERT INTO sessions (th, uid, did, expires) VALUES (?, ?, ?, ?)').bind(await sha256(token), u.id, dv.did, now + SESSION_DAYS * DAY).run();
-    await audit(db, u.role, 'login', deviceLabel(req.headers.get('User-Agent')));
+    await audit(req, db, u.role, 'login', null);
     const cookies = [sessionCookie(token, SESSION_DAYS * 86400)];
     if (dv.setCookie) cookies.push(dv.setCookie);
     return json({ ok: true, role: u.role }, 200, { 'Set-Cookie': cookies });
   }
   if (p === '/logout' && req.method === 'POST') {
     const t = cookie(req, 'c365_s');
-    if (t) await db.prepare('DELETE FROM sessions WHERE th = ?').bind(await sha256(t)).run();
+    if (t) {
+      const who = await db.prepare('SELECT u.role FROM sessions s JOIN users u ON u.id = s.uid WHERE s.th = ?').bind(await sha256(t)).first();
+      await db.prepare('DELETE FROM sessions WHERE th = ?').bind(await sha256(t)).run();
+      if (who) await audit(req, db, who.role, 'logout', null);
+    }
     return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
   }
 
@@ -129,9 +140,9 @@ async function handle(req, env) {
     const s = checkSub(await body(req));
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending'").bind(s.phone).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
-    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, staff_no, created, did) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(s.name, s.phone, s.sdate, s.kind, s.staff_no, now, u.did).run();
-    await audit(db, u.role, 'sub_add', s.staff_no + ' 提交 ' + (s.name || '') + ' ' + s.phone + ' ' + s.sdate + (s.kind === 'renew' ? ' 续卡' : ''));
+    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(s.name, s.phone, s.sdate, s.kind, s.staff_no, s.store, now, u.did).run();
+    await audit(req, db, u.role, 'sub_add', '#' + r.meta.last_row_id + ' ' + s.store + ' 工号 ' + s.staff_no + '：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + (s.kind === 'renew' ? '续卡从 ' : '开卡 ') + s.sdate);
     return json({ ok: true, id: r.meta.last_row_id });
   }
   // 列表：店员只能看自己工号最近 30 天的；操作员看待处理的全部 + 最近 30 天处理过的
@@ -153,7 +164,7 @@ async function handle(req, env) {
     if (!s || s.status !== 'pending') throw bad('这条已经处理过，不能删了');
     if (!isOp && s.staff_no !== str(b.staff_no, 20)) throw new HttpError(403, '只能删自己工号提交的');
     await db.prepare("UPDATE subs SET status = 'del', del_at = ?, del_by = ? WHERE id = ?").bind(now, isOp ? '操作员' : '工号 ' + s.staff_no, s.id).run();
-    await audit(db, u.role, 'sub_del', s.staff_no + ' ' + (s.name || '') + ' ' + s.phone);
+    await audit(req, db, u.role, 'sub_del', '#' + s.id + ' 删除（' + (isOp ? '操作员删的' : '工号 ' + s.staff_no + ' 自己删的') + '）：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + (s.kind === 'renew' ? '续卡从 ' : '开卡 ') + s.sdate + ' · 原提交工号 ' + s.staff_no);
     return json({ ok: true });
   }
   // 操作员导出后标「已导出」
@@ -164,15 +175,23 @@ async function handle(req, env) {
       const part = ids.slice(i, i + 50);
       await db.prepare("UPDATE subs SET status = 'done', done_at = ? WHERE status = 'pending' AND id IN (" + part.map(() => '?').join(',') + ')').bind(now, ...part).run();
     }
-    if (ids.length) await audit(db, u.role, 'sub_done', ids.length + ' 条标为已导出');
+    if (ids.length) {
+      const rows = [];
+      for (let i = 0; i < ids.length; i += 50) {
+        const part = ids.slice(i, i + 50);
+        rows.push(...(await db.prepare('SELECT id, name, phone FROM subs WHERE id IN (' + part.map(() => '?').join(',') + ')').bind(...part).all()).results);
+      }
+      await audit(req, db, u.role, 'sub_done', ids.length + ' 条标为已导出：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
+    }
     return json({ ok: true });
   }
   // 撤回「已导出」（点错了）
   if (p === '/sub/undo' && req.method === 'POST') {
     needOp();
     const id = Number((await body(req)).id) || 0;
+    const s0 = await db.prepare('SELECT id, name, phone FROM subs WHERE id = ?').bind(id).first();
     await db.prepare("UPDATE subs SET status = 'pending', done_at = NULL WHERE id = ? AND status = 'done'").bind(id).run();
-    await audit(db, u.role, 'sub_undo', '#' + id);
+    await audit(req, db, u.role, 'sub_undo', '撤回已导出，变回待处理：' + (s0 ? '#' + s0.id + ' ' + (s0.name || '') + ' ' + s0.phone : '#' + id));
     return json({ ok: true });
   }
   // 设备列表 / 改密码（只有操作员）
@@ -180,6 +199,32 @@ async function handle(req, env) {
     needOp();
     const r = await db.prepare('SELECT d.id, u.role, d.label, d.created, d.last_at FROM devices d JOIN users u ON u.id = d.uid ORDER BY u.role, d.last_at DESC').all();
     return json({ devices: r.results, me: u.did });
+  }
+  // 战报数据：时间段内提交的（不含删掉的），按提交时间算。只给统计要用的字段，不给姓名手机号
+  if (p === '/report' && req.method === 'GET') {
+    needOp();
+    const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
+    const r = await db.prepare("SELECT store, staff_no, kind, created FROM subs WHERE status <> 'del' AND created >= ? AND created < ? ORDER BY created").bind(from, to).all();
+    return json({ rows: r.results });
+  }
+  // 页面上做的事（服务器看不到的）：导出、载入名单、下载模板
+  if (p === '/log' && req.method === 'POST') {
+    needOp();
+    const b = await body(req), act = String(b.act || '');
+    if (['export', 'load', 'tpl', 'report'].indexOf(act) < 0) throw bad('不认识的记录类型');
+    await audit(req, db, u.role, act, str(b.info, 4000));
+    return json({ ok: true });
+  }
+  // 操作记录：按 id 倒序分页；act 筛类型，q 搜详情 / 设备
+  if (p === '/audit' && req.method === 'GET') {
+    needOp();
+    const before = Number(url.searchParams.get('before')) || 1e15, act = str(url.searchParams.get('act'), 20), q = str(url.searchParams.get('q'), 40);
+    let sql = 'SELECT id, at, role, act, info, dev, ip FROM audit WHERE id < ?', args = [before];
+    if (act) { sql += ' AND act = ?'; args.push(act); }
+    if (q) { sql += ' AND (info LIKE ? OR dev LIKE ? OR ip LIKE ?)'; const l = '%' + q.replace(/[%_]/g, '') + '%'; args.push(l, l, l); }
+    const r = await db.prepare(sql + ' ORDER BY id DESC LIMIT 200').bind(...args).all();
+    const n = await db.prepare('SELECT COUNT(*) n FROM audit').first();
+    return json({ rows: r.results, total: n.n });
   }
   // 账号与设备页：两个账号 + 各自登录的设备
   if (p === '/accounts' && req.method === 'GET') {
@@ -196,7 +241,7 @@ async function handle(req, env) {
     const d = await db.prepare('SELECT d.label, u.role FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
     if (!d) throw bad('这台设备已经不在了');
     await db.batch([db.prepare('DELETE FROM sessions WHERE did = ?').bind(id), db.prepare('DELETE FROM devices WHERE id = ?').bind(id)]);
-    await audit(db, u.role, 'device_remove', ROLE_NAME[d.role] + ' ' + d.label);
+    await audit(req, db, u.role, 'device_remove', ROLE_NAME[d.role] + ' ' + d.label);
     return json({ ok: true });
   }
   if (p === '/password' && req.method === 'POST') {
@@ -210,7 +255,7 @@ async function handle(req, env) {
       db.prepare('UPDATE users SET salt = ?, hash = ?, fails = 0, lock_until = 0 WHERE id = ?').bind(salt, await pbkdf2(pass, salt), t.id),
       db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(t.id, keep)   // 改完其他设备都要重新登录
     ]);
-    await audit(db, u.role, 'password', ROLE_NAME[role] + '账号改了密码');
+    await audit(req, db, u.role, 'password', ROLE_NAME[role] + '账号改了密码');
     return json({ ok: true });
   }
   throw new HttpError(404, '没有这个接口');
