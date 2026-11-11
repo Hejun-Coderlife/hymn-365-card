@@ -83,10 +83,32 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pwrow{display:flex;gap:8px;align-items:center;justify-content:flex-end}
 .pwrow input{border:1px solid var(--line-2);padding:7px 10px;font-size:13px;outline:none;width:180px}
 .pwrow input:focus{border-color:var(--ink)}
+.rbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.rseg{width:auto;margin:0;flex:none}
+.rseg button{white-space:nowrap;flex:none}
+#rMode button,#rBy button{padding:8px 16px}
+.rdate[hidden]{display:none}
+.rseg button{padding:8px 18px}
+.rbar select,.rbar>input{border:1px solid var(--line-2);padding:8px 10px;font-size:13px;outline:none;background:#fff}
+.rbar>input{width:240px}
+.rdate{display:inline-flex;align-items:center;gap:8px}
+.rdate .dp-btn{border:1px solid var(--line-2);padding:6px 12px;font-size:15px;width:auto;white-space:nowrap}
+.rdate i{font-style:normal;color:var(--t3)}
+.rwrap{display:flex;gap:28px;align-items:flex-start}
+.rprev{width:540px;flex:none;border:1px solid var(--line-2)}
+.rprev canvas{display:block;width:100%}
+.rbtns{display:flex;flex-direction:column;gap:10px}
+.ltable table td{vertical-align:top;font-size:13px;white-space:normal}
+.ltable td.t{white-space:nowrap;font-family:var(--num);font-size:14px}
+.ltable td.a{white-space:nowrap}
+.ltable td.d{color:var(--t3);white-space:nowrap;font-size:12px}
+.ltable .tag{font-size:12px;padding:2px 7px;background:var(--paper);color:var(--t2)}
+.ltable .tag.warn{background:var(--pink-bg);color:var(--pink-deep)}
 .subbox{border:1px solid var(--line-2)}
 .sublist{max-height:300px;overflow:auto}
 .sublist table td,.sublist table th{padding:7px 12px}
-.sublist td.ck,.sublist th.ck{width:36px;text-align:center}
+.sublist td.ck,.sublist th.ck{width:64px;text-align:left;white-space:nowrap}
+.sublist label.all{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--t2)}
 .sublist .st{font-size:12px;padding:2px 7px}
 .sublist .st.done{color:#2F5D45;background:rgba(47,93,69,.08)} .sublist .st.del{color:var(--t4);background:var(--paper)}
 .sublist .loaded{color:var(--pink-deep);font-size:12px}
@@ -160,8 +182,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   <nav class="nav">
     <div class="grp">会员</div>
     <a class="on" data-panel="tool"><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="5" width="17" height="12"/><line x1="2.5" y1="9" x2="19.5" y2="9"/><line x1="5.5" y1="13.5" x2="10" y2="13.5"/></svg></span><span>365金卡导入表</span></a>
+    <a data-panel="report" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="2.5" y1="19" x2="19.5" y2="19"/><rect x="5" y="11" width="3.4" height="8"/><rect x="10.3" y="6.5" width="3.4" height="12.5"/><rect x="15.6" y="13.5" width="3.4" height="5.5"/></svg></span><span>战报</span></a>
     <div class="grp" data-op hidden>管理</div>
     <a data-panel="users" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="7.5" r="3"/><path d="M2.5 18.5c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2"/><circle cx="15.5" cy="8.5" r="2.4"/><path d="M14.2 13.6c2.6-.2 4.6 1.3 5.3 4.9"/></svg></span><span>账号与设备</span></a>
+    <a data-panel="log" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="4" y="2.5" width="14" height="17"/><line x1="7" y1="7.5" x2="15" y2="7.5"/><line x1="7" y1="11" x2="15" y2="11"/><line x1="7" y1="14.5" x2="12" y2="14.5"/></svg></span><span>操作记录</span></a>
   </nav>
   <div class="foot">每人 42 张券<br>洗脸巾 12 张 · 代金券 30 张<br>另附 3 次护理导入</div>
   <div class="foot me" data-op hidden><b>操作员</b><br><button class="lnk" id="outBtn" type="button">退出登录</button></div>
@@ -254,6 +278,41 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </div>
 </div>
 
+<!-- 战报（2026-11-11 用户：像抖音看板的战报，日 / 周 / 月 / 年，可筛门店 / 店员） -->
+<div class="panel" id="p-report" hidden>
+  <header class="pagehead"><div>
+    <div class="eyebrow">赫眉 HYMN · 会员卡项</div><h2>365金卡战报</h2>
+    <p>按店员提交的时间统计办卡数，生成图片发群；删掉的提交不算</p></div></header>
+  <section class="sec">
+    <div class="rbar">
+      <div class="seg rseg" id="rMode"><button type="button" data-m="day">日</button><button type="button" data-m="week">周</button><button type="button" data-m="month">月</button><button type="button" data-m="year">年</button><button type="button" data-m="range">自选</button></div>
+      <span class="rdate" id="rOne"><input type="date" id="rDate"></span>
+      <span class="rdate" id="rTwo" hidden><input type="date" id="rFrom"><i>–</i><input type="date" id="rTo"></span>
+    </div>
+    <div class="rbar">
+      <div class="seg rseg" id="rBy"><button type="button" data-b="store">按门店排</button><button type="button" data-b="staff">按店员排</button></div>
+      <select id="rMgr"><option value="">全部区域经理</option></select>
+      <select id="rStore"><option value="">全部门店</option></select>
+      <input id="rStaff" placeholder="工号（可填几个，空格隔开）">
+    </div>
+    <p class="hint" id="rInfo" style="margin:12px 0"></p>
+    <div class="rwrap"><div class="rprev" id="rPrev"></div>
+      <div class="rbtns"><button class="btn pri" id="rCopy" type="button">复制图片</button><button class="btn" id="rPng" type="button">下载图片</button><button class="btn" id="rXls" type="button">下载 Excel</button></div></div>
+  </section>
+</div>
+
+<!-- 操作记录（2026-11-11 用户：任何提交或删除都要留下，不可删除）。库里有触发器，改不了删不掉 -->
+<div class="panel" id="p-log" hidden>
+  <header class="pagehead"><div>
+    <div class="eyebrow">赫眉 HYMN · 管理</div><h2>操作记录</h2>
+    <p>谁、什么时候、在哪台设备上做了什么。只增不减，任何人都删不掉、改不了</p></div></header>
+  <section class="sec">
+    <div class="rbar"><select id="lAct"><option value="">全部类型</option></select><input id="lQ" placeholder="搜姓名、手机号、工号、门店、设备"><span class="hint" id="lInfo"></span></div>
+    <div class="ltable" id="lTable"></div>
+    <div style="text-align:center;margin-top:14px"><button class="btn" id="lMore" type="button" hidden>再加载 200 条</button></div>
+  </section>
+</div>
+
 <!-- 账号与设备（照会员助手「账号与门店」的样子，2026-11-11 用户要求） -->
 <div class="panel" id="p-users" hidden>
   <header class="pagehead">
@@ -272,12 +331,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="datepick.js?v=202611111929"></script>
-<script src="api.js?v=202611111929"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111929"></script>
-<script src="vendor/jszip.min.js?v=202611111929"></script>
-<script src="xls.js?v=202611111929"></script>
-<script src="gen.js?v=202611111929"></script>
+<script src="stores.js?v=202611111940"></script>
+<script src="report.js?v=202611111940"></script>
+<script src="datepick.js?v=202611111940"></script>
+<script src="api.js?v=202611111940"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111940"></script>
+<script src="vendor/jszip.min.js?v=202611111940"></script>
+<script src="xls.js?v=202611111940"></script>
+<script src="gen.js?v=202611111940"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -442,6 +503,7 @@ $('#tpl').onclick = () => {
     [null, null, null, null, '名字以「示例」开头的行导入时会自动跳过，可以不删'],
   ] }]);
   download(new Blob([bytes], { type: XLS_MIME }), '365金卡名单模板.xls');
+  logAct('tpl', '下载名单模板');
 };
 $('#clear').onclick = () => { $('#txt').value = ''; update(); $('#txt').focus(); };
 const drop = $('#drop');
@@ -555,16 +617,17 @@ async function loadSubs() {
 }
 function paintSubs() {
   const list = showHist ? subs.recent : subs.pending;
+  const keep = {}; document.querySelectorAll('.ck1').forEach(c => { keep[c.value] = c.checked; });   // 自动刷新时保留已勾 / 没勾
   $('#subN').textContent = subs.pending.length;
   $('#subInfo').textContent = showHist ? '最近 30 天已处理' : (subs.pending.length ? `待处理 ${subs.pending.length} 条` : '待处理');
   $('#subHist').textContent = showHist ? '看待处理' : '看已处理';
   $('#subLoad').hidden = $('#subDel').hidden = showHist;
   const inList = new Set(Object.keys(loaded));
   $('#subList').innerHTML = !list.length ? `<div class="empty">${showHist ? '最近 30 天没有处理过的' : '没有待处理的提交'}</div>` :
-    '<table><thead><tr>' + (showHist ? '' : `<th class="ck"><input type="checkbox" id="ckAll" ${list.some(x => !inList.has(x.phone)) ? 'checked' : ''}></th>`) +
-    '<th>提交时间</th><th>工号</th><th>姓名</th><th>手机号</th><th>办卡</th><th>日期</th><th>' + (showHist ? '状态' : '') + '</th></tr></thead><tbody>' +
-    list.map(x => '<tr>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}" ${inList.has(x.phone) ? '' : 'checked'}></td>`) +
-      `<td class="num">${tm(x.created)}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td><td>${x.kind === 'renew' ? '续卡' : '新开卡'}</td><td class="num">${sdYmd(x.sdate)}</td><td>` +
+    '<table><thead><tr>' + (showHist ? '' : `<th class="ck"><label class="all"><input type="checkbox" id="ckAll" ${list.some(x => !inList.has(x.phone)) ? 'checked' : ''}>全选</label></th>`) +
+    '<th>提交时间</th><th>门店</th><th>工号</th><th>姓名</th><th>手机号</th><th>办卡</th><th>日期</th><th>' + (showHist ? '状态' : '') + '</th></tr></thead><tbody>' +
+    list.map(x => '<tr>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}" ${(x.id in keep ? keep[x.id] : !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
+      `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td><td>${x.kind === 'renew' ? '续卡' : '新开卡'}</td><td class="num">${sdYmd(x.sdate)}</td><td>` +
       (showHist ? (x.status === 'done' ? `<span class="st done">已导出 ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td></tr>').join('') + '</tbody></table>';
   const all = $('#ckAll');
@@ -582,6 +645,7 @@ $('#subLoad').onclick = () => {
   add.forEach(x => { loaded[x.phone] = x.id; });
   saveLoaded(); update(); paintSubs();
   toast(`载入 ${add.length} 人，每人按自己提交的日期算`);
+  logAct('load', `载入店员提交 ${add.length} 人到名单：` + add.map(x => `#${x.id} ${x.name || ''} ${x.phone}`).join('、'));
 };
 let delSure = 0;
 $('#subDel').onclick = async () => {
@@ -595,7 +659,14 @@ $('#subDel').onclick = async () => {
 $('#subHist').onclick = () => { showHist = !showHist; paintSubs(); };
 $('#subRef').onclick = loadSubs;
 // 导出成功后调用：名单里来自店员提交的，标「已导出」
+// 页面上做的事记进操作记录（离线双击打开时没有服务器，跳过）
+function logAct(act, info) { if (location.protocol !== 'file:') api('/log', { act, info }).catch(() => {}); }
+function logExport(mode) {
+  const M = { folder: '生成文件夹', zip: '压缩 zip', loose: '散放进下载' };
+  logAct('export', `导出 ${people.length} 人（${M[mode]}）：` + people.map(p => `${p.name || ''} ${p.phone} ${Gen.ymd(p.date || curDate())}${(renew || p.renew) ? ' 续卡' : ''}`).join('、'));
+}
 async function markExported() {
+  logExport(how);
   const ids = people.map(p => loaded[p.phone]).filter(Boolean);
   if (!ids.length) return;
   try {
@@ -636,14 +707,95 @@ async function loadUsers() {
   });
 }
 // 侧栏切换（#view=users 可直接打开）
+const PANELS = ['tool', 'report', 'users', 'log'];
 function showPanel(v) {
-  if (v !== 'users') v = 'tool';
+  if (PANELS.indexOf(v) < 0) v = 'tool';
   document.querySelectorAll('.nav a[data-panel]').forEach(a => a.classList.toggle('on', a.dataset.panel === v));
-  $('#p-tool').hidden = v !== 'tool'; $('#p-users').hidden = v !== 'users';
+  PANELS.forEach(k => { $('#p-' + k).hidden = k !== v; });
   if (v === 'users') loadUsers();
-  history.replaceState(null, '', v === 'users' ? '#view=users' : location.pathname);
+  if (v === 'report') rRender();
+  if (v === 'log') lLoad(true);
+  history.replaceState(null, '', v === 'tool' ? location.pathname : '#view=' + v);
 }
 document.querySelectorAll('.nav a[data-panel]').forEach(a => a.onclick = () => showPanel(a.dataset.panel));
+
+/* ---------- 战报 ---------- */
+const RP = { mode: 'week', date: iso(today), from: iso(new Date(today.getFullYear(), today.getMonth(), 1)), to: iso(today), by: 'store' };
+try { Object.assign(RP, JSON.parse(localStorage.getItem('c365_report') || '{}'), { date: iso(today) }); } catch (e) {}
+$('#rMgr').insertAdjacentHTML('beforeend', STORES.map(([m]) => `<option>${m}</option>`).join(''));
+function rFillStores() {
+  const m = $('#rMgr').value, cur = $('#rStore').value;
+  $('#rStore').innerHTML = '<option value="">全部门店</option>' + STORES.filter(([k]) => !m || k === m).map(([k, l]) => `<optgroup label="${k}">${l.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join('');
+  if (STORE_MGR[cur] && (!m || STORE_MGR[cur] === m)) $('#rStore').value = cur;
+}
+$('#rMgr').value = RP.mgr || ''; rFillStores(); $('#rStore').value = RP.store || ''; $('#rStaff').value = RP.staff || '';
+$('#rDate').value = RP.date; $('#rFrom').value = RP.from; $('#rTo').value = RP.to;
+let rCanvas = null, rData = null, rLogo = null, rSeq = 0;
+function rSave() { try { localStorage.setItem('c365_report', JSON.stringify({ mode: RP.mode, by: RP.by, from: RP.from, to: RP.to, mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value })); } catch (e) {} }
+async function rRender() {
+  document.querySelectorAll('#rMode button').forEach(b => b.classList.toggle('on', b.dataset.m === RP.mode));
+  document.querySelectorAll('#rBy button').forEach(b => b.classList.toggle('on', b.dataset.b === RP.by));
+  $('#rOne').hidden = RP.mode === 'range'; $('#rTwo').hidden = RP.mode !== 'range';
+  RP.date = $('#rDate').value || iso(today); RP.from = $('#rFrom').value; RP.to = $('#rTo').value;
+  rSave();
+  const r = Report365.range(RP), seq = ++rSeq;
+  $('#rInfo').textContent = '统计中…';
+  let rows;
+  try { rows = (await api(`/report?from=${r.from}&to=${r.to}`)).rows; } catch (e) { $('#rInfo').textContent = e.message; return; }
+  if (seq !== rSeq) return;
+  rData = Report365.compute(rows, { mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value, by: RP.by }, r);
+  $('#rInfo').textContent = `${Gen.ymd(r.fromD)} ~ ${Gen.ymd(r.toD)} · ${rData.scope} · 办卡 ${rData.total} 张`;
+  if (!rLogo) rLogo = await new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = 'logo-ink.png'; });
+  rCanvas = Report365.draw(rData, rLogo);
+  $('#rPrev').innerHTML = ''; $('#rPrev').appendChild(rCanvas);
+}
+const rName = () => { const r = rData.r; return `365金卡战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
+document.querySelectorAll('#rMode button').forEach(b => b.onclick = () => { RP.mode = b.dataset.m; rRender(); });
+document.querySelectorAll('#rBy button').forEach(b => b.onclick = () => { RP.by = b.dataset.b; rRender(); });
+$('#rMgr').onchange = () => { rFillStores(); rRender(); };
+$('#rStore').onchange = rRender;
+let rT; $('#rStaff').oninput = () => { clearTimeout(rT); rT = setTimeout(rRender, 400); };
+['#rDate', '#rFrom', '#rTo'].forEach(k => $(k).addEventListener('input', rRender));
+$('#rCopy').onclick = () => {
+  if (!rCanvas) return;
+  if (!navigator.clipboard || !window.ClipboardItem) return toast('这个浏览器不支持复制图片，请用「下载图片」');
+  rCanvas.toBlob(b => navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(() => toast('已复制，去微信里粘贴就行')).catch(() => toast('复制失败，请用「下载图片」')), 'image/png');
+  logAct('report', '复制战报图：' + $('#rInfo').textContent);
+};
+$('#rPng').onclick = () => { if (!rCanvas) return; const a = document.createElement('a'); a.download = rName() + '.png'; a.href = rCanvas.toDataURL('image/png'); a.click(); logAct('report', '下载战报图：' + $('#rInfo').textContent); };
+$('#rXls').onclick = () => {
+  if (!rData) return;
+  const st = rData.by === 'store';
+  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '办卡数', '新开卡', '续卡']]
+    .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn]))
+    .concat([[null, '合计', null, rData.total, rData.nw, rData.rn]]);
+  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls');
+  logAct('report', '下载战报 Excel：' + $('#rInfo').textContent);
+};
+
+/* ---------- 操作记录 ---------- */
+const ACT = { login: '登录', logout: '退出', login_fail: '密码输错', locked: '输错锁定', login_locked: '锁定中尝试', device_new: '新设备登录', device_kick: '设备被挤掉',
+  device_remove: '移出设备', password: '改密码', sub_add: '店员提交', sub_del: '删除提交', sub_done: '标为已导出', sub_undo: '撤回已导出',
+  load: '载入名单', export: '导出表格', tpl: '下载模板', report: '战报' };
+const WARN = new Set(['sub_del', 'login_fail', 'locked', 'login_locked', 'device_kick', 'device_remove', 'password', 'sub_undo']);
+$('#lAct').insertAdjacentHTML('beforeend', Object.entries(ACT).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''));
+let lRows = [], lMin = 0;
+const lTime = t => { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+function pad2(n) { return String(n).padStart(2, '0'); }
+async function lLoad(reset) {
+  if (reset) { lRows = []; lMin = 0; }
+  let d;
+  try { d = await api(`/audit?act=${$('#lAct').value}&q=${encodeURIComponent($('#lQ').value.trim())}${lMin ? '&before=' + lMin : ''}`); } catch (e) { $('#lTable').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  lRows = lRows.concat(d.rows); if (d.rows.length) lMin = d.rows[d.rows.length - 1].id;
+  $('#lMore').hidden = d.rows.length < 200;
+  $('#lInfo').textContent = `一共 ${d.total} 条记录，这里显示 ${lRows.length} 条`;
+  $('#lTable').innerHTML = !lRows.length ? '<div class="empty">没有记录</div>' : '<table><thead><tr><th>时间</th><th>账号</th><th>做了什么</th><th>详情</th><th>设备 · IP</th></tr></thead><tbody>' +
+    lRows.map(x => `<tr><td class="t">${lTime(x.at)}</td><td class="a">${RN[x.role] || '—'}</td><td class="a"><span class="tag ${WARN.has(x.act) ? 'warn' : ''}">${ACT[x.act] || x.act}</span></td><td>${esc(x.info || '')}</td><td class="d">${esc(x.dev || '')}<br>${esc(x.ip || '')}</td></tr>`).join('') + '</tbody></table>';
+}
+$('#lAct').onchange = () => lLoad(true);
+let lT; $('#lQ').oninput = () => { clearTimeout(lT); lT = setTimeout(() => lLoad(true), 400); };
+$('#lMore').onclick = () => lLoad(false);
+
 $('#outBtn').onclick = logout;
 
 update();
@@ -652,7 +804,10 @@ if (location.protocol !== 'file:') {
   api('/me').then(r => {
     if (r.role !== 'op') { location.href = '/store.html'; return; }
     document.querySelectorAll('[data-op]').forEach(x => x.hidden = false); $('#subSec').hidden = false; loadSubs();
-    if (/view=users/.test(location.hash)) showPanel('users');
+    // 多台电脑同时开着：别的操作员导出 / 删了，这边 30 秒内自动跟上（页面在后台时不刷，切回来马上刷）
+    setInterval(() => { if (!document.hidden) loadSubs(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadSubs(); });
+    const hv = (location.hash.match(/view=(\w+)/) || [])[1]; if (hv) showPanel(hv);
   }).catch(() => {});
 }
 </script>

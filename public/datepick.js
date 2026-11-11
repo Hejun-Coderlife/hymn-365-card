@@ -22,7 +22,7 @@
 .dp-g button:hover{background:#FAFAF8}
 .dp-g button.o{color:#C9C3B8}
 .dp-g button.t{color:#B9808B;box-shadow:inset 0 -2px 0 #D9A6AE}
-.dp-g button.s{background:#16140F;color:#fff;box-shadow:none}
+.dp-g button.s{background:var(--dp-sel,#16140F);color:#fff;box-shadow:none}
 .dp-ft{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #F0EDE6}
 .dp-ft button{flex:1;border:1px solid #E3DFD6;background:#fff;padding:7px 0;font-size:13px;color:#4A453C;cursor:pointer}
 .dp-mask{position:fixed;inset:0;z-index:99}
