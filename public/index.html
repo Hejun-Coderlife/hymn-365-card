@@ -22,16 +22,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);border-right:1px solid var(--line-2);background:#fff;display:flex;flex-direction:column}
 .sidebar .logo{padding:34px 22px 26px;border-bottom:1px solid var(--line-2)}
 .sidebar .logo img{height:30px;display:block}
-.mk365{margin-top:10px;display:flex;align-items:baseline;gap:4px;line-height:1;
-  /* 铜金色取自金卡海报（#f3c487 → #d9804a → #9a5434），一道亮光每 4.5 秒扫过一次。只动 background-position，字小、开销很低 */
-  background:linear-gradient(100deg,#b0683a 0%,#d9804a 30%,#f6d39c 45%,#fff3dc 50%,#f6d39c 55%,#d9804a 70%,#9a5434 100%);
-  background-size:250% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:mk365 4.5s ease-in-out 0.6s infinite}
-.mk365 .n{font-family:Didot,"Bodoni 72",Georgia,serif;font-size:22px;letter-spacing:.02em}
-.mk365 .c{font-family:"Songti SC","STSong",serif;font-size:16px;font-weight:600;letter-spacing:.12em}
-.mk365 span{-webkit-background-clip:text;background-clip:text}
-@keyframes mk365{0%{background-position:100% 0}45%,100%{background-position:0 0}}
-@media (prefers-reduced-motion:reduce){.mk365{animation:none;background-position:30% 0}}
+.mk365{margin-top:10px;font-family:-apple-system,"PingFang SC",sans-serif;font-size:11px;font-weight:600;letter-spacing:.42em;line-height:1;display:inline-block;
+  /* 2026-11-11 第二版：铜色衬线字跟黑色 logo 不搭（用户：太不和谐），改成跟原来 STUDIO 同一个排法，黑字上一道淡金光每 5 秒扫过一次 */
+  background:linear-gradient(100deg,#16140F 0%,#16140F 40%,#C9A15A 48%,#F0D9A8 50%,#C9A15A 52%,#16140F 60%,#16140F 100%);
+  background-size:300% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:mk365 5s ease-in-out 0.8s infinite}
+@keyframes mk365{0%{background-position:100% 0}40%,100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.mk365{animation:none;color:#16140F;background:none}}
 .sidebar .logo .st{margin-top:10px;font-size:10px;letter-spacing:.32em;color:var(--t3)}
 .nav{padding:18px 0}
 .nav .grp{padding:14px 22px 8px;font-size:11px;letter-spacing:.2em;color:var(--t4)}
@@ -94,15 +91,19 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pwrow input{border:1px solid var(--line-2);padding:7px 10px;font-size:13px;outline:none;width:180px}
 .pwrow input:focus{border-color:var(--ink)}
 .rbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.rseg{width:auto;margin:0;flex:none}
+#p-report .rseg{width:auto;margin:0;flex:none;height:38px;box-sizing:border-box}
+.rseg button{height:36px;display:inline-flex;align-items:center;justify-content:center}
 .rseg button{white-space:nowrap;flex:none}
-#rMode button,#rBy button{padding:8px 16px}
+#rMode button,#rBy button{padding:0 16px}
 .rdate[hidden]{display:none}
 .rseg button{padding:8px 18px}
-.rbar select,.rbar>input{border:1px solid var(--line-2);padding:8px 10px;font-size:13px;outline:none;background:#fff}
+.rbar>input{border:1px solid var(--line-2);height:38px;box-sizing:border-box;padding:0 12px;font-size:13px;outline:none;background:#fff}
+.rbar>input:focus{border-color:var(--ink)}
+.rbar>input::placeholder{color:var(--t4)}
 .rbar>input{width:240px}
 .rdate{display:inline-flex;align-items:center;gap:8px}
-.rdate .dp-btn{border:1px solid var(--line-2);padding:6px 12px;font-size:15px;width:auto;white-space:nowrap}
+.rdate .dp-btn{border:1px solid var(--line-2);height:38px;box-sizing:border-box;padding:0 12px;font-size:15px;width:auto;white-space:nowrap;align-items:center}
+.rdate .dp-btn:hover{border-color:var(--ink)}
 .rdate i{font-style:normal;color:var(--t3)}
 .rwrap{display:flex;gap:28px;align-items:flex-start}
 .rprev{width:540px;flex:none;border:1px solid var(--line-2)}
@@ -191,7 +192,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 <aside class="sidebar">
   <div class="logo">
     <img src="logo-ink.png" alt="赫眉 HYMN">
-    <div class="mk365" aria-label="365金卡"><span class="n">365</span><span class="c">金卡</span></div>
+    <div class="mk365">365 金卡</div>
   </div>
   <nav class="nav">
     <div class="grp">会员</div>
@@ -339,14 +340,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611111943"></script>
-<script src="report.js?v=202611111943"></script>
-<script src="datepick.js?v=202611111943"></script>
-<script src="api.js?v=202611111943"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111943"></script>
-<script src="vendor/jszip.min.js?v=202611111943"></script>
-<script src="xls.js?v=202611111943"></script>
-<script src="gen.js?v=202611111943"></script>
+<script src="stores.js?v=202611111949"></script>
+<script src="report.js?v=202611111949"></script>
+<script src="xsel.js?v=202611111949"></script>
+<script src="datepick.js?v=202611111949"></script>
+<script src="api.js?v=202611111949"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111949"></script>
+<script src="vendor/jszip.min.js?v=202611111949"></script>
+<script src="xls.js?v=202611111949"></script>
+<script src="gen.js?v=202611111949"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -836,6 +838,7 @@ $('#lAct').onchange = () => lLoad(true);
 let lT; $('#lQ').oninput = () => { clearTimeout(lT); lT = setTimeout(() => lLoad(true), 400); };
 $('#lMore').onclick = () => lLoad(false);
 
+document.querySelectorAll('select').forEach(el => XSel.attach(el));   // 所有下拉框自己画
 $('#outBtn').onclick = logout;
 
 update();

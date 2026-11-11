@@ -27,6 +27,8 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .row input.num{font-family:var(--num);font-size:19px}
 .row select{flex:1;border:0;outline:none;padding:14px 0;font-size:17px;background:transparent;min-width:0;-webkit-appearance:none;appearance:none;color:var(--ink)}
 .row select:invalid{color:var(--t4)}
+.row .xs-btn{flex:1;border:0;height:auto;padding:14px 0;font-size:17px;min-width:0}
+.row .xs-btn svg{margin-right:4px}
 .row .tip{font-size:12px;color:var(--t3);margin-left:8px;flex:none}
 .seg{display:flex;flex:1;border:1px solid var(--line-2)}
 .seg button{flex:1;border:0;background:#fff;padding:10px 4px;font-size:15px;color:var(--t2)}
@@ -61,7 +63,7 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   <div class="sub">填好提交，总部统一导入系统</div>
 
   <form class="form" id="f" autocomplete="off">
-    <div class="row"><label>门店</label><select id="store" required><option value="">选你的门店</option></select><span class="tip">会记住</span></div>
+    <div class="row"><label>门店</label><select id="store"><option value="">选你的门店</option></select><span class="tip">会记住</span></div>
     <div class="row"><label>工号</label><input id="no" placeholder="你的工号" maxlength="20" required><span class="tip">会记住</span></div>
     <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button></div></div>
     <div class="row"><label>会员姓名</label><input id="name" placeholder="姓名" maxlength="30"></div>
@@ -77,14 +79,16 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="stores.js?v=202611111943"></script>
-<script src="datepick.js?v=202611111943"></script>
-<script src="api.js?v=202611111943"></script>
+<script src="stores.js?v=202611111949"></script>
+<script src="xsel.js?v=202611111949"></script>
+<script src="datepick.js?v=202611111949"></script>
+<script src="api.js?v=202611111949"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
 // 门店下拉：按区域经理分组
-$('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));   // 中文日历（浏览器自带的跟系统语言走）
+$('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
+XSel.attach($('#store'), { placeholder: true });   // 自画下拉，手机上从底部弹出、能搜   // 中文日历（浏览器自带的跟系统语言走）
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const today = new Date();
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
