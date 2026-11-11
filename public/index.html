@@ -116,6 +116,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ltable .tag{font-size:12px;padding:2px 7px;background:var(--paper);color:var(--t2)}
 .ltable .tag.warn{background:var(--pink-bg);color:var(--pink-deep)}
 #p-tool > .sec:first-of-type,#p-tool > .sec[hidden] + .sec{margin-top:0}
+.sublist input[type=checkbox]{accent-color:var(--ink);width:15px;height:15px}
+.btn.go1{background:var(--ink);color:#fff;border-color:var(--ink);padding:6px 18px}   /* 2026-11-11 用户：开始处理要突出 */
+.btn.go1:hover{background:#000}
+.btn.go1[disabled]{background:var(--t4);border-color:var(--t4);cursor:default}
 .subbox{border:1px solid var(--line-2)}
 .sublist{max-height:300px;overflow:auto}
 .sublist table td,.sublist table th{padding:7px 12px}
@@ -215,7 +219,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <h3>店员提交 <span class="n" id="subN">0</span> <span class="hint" style="letter-spacing:0">店员在手机上填的，勾选后点「开始处理」放进名单再导出，导出完自动标「已导出」</span></h3>
     <div class="subbox">
       <div class="phd"><span id="subInfo">待处理</span>
-        <button class="btn sm" id="subLoad" type="button">开始处理</button>
+        <button class="btn sm go1" id="subLoad" type="button">开始处理</button>
         <button class="btn sm" id="subDel" type="button">删除选中</button>
         <button class="btn sm" id="subHist" type="button">看已处理</button>
         <button class="btn sm" id="subRef" type="button">刷新</button></div>
@@ -340,15 +344,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611111956"></script>
-<script src="report.js?v=202611111956"></script>
-<script src="xsel.js?v=202611111956"></script>
-<script src="datepick.js?v=202611111956"></script>
-<script src="api.js?v=202611111956"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111956"></script>
-<script src="vendor/jszip.min.js?v=202611111956"></script>
-<script src="xls.js?v=202611111956"></script>
-<script src="gen.js?v=202611111956"></script>
+<script src="stores.js?v=202611111958"></script>
+<script src="report.js?v=202611111958"></script>
+<script src="xsel.js?v=202611111958"></script>
+<script src="datepick.js?v=202611111958"></script>
+<script src="api.js?v=202611111958"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111958"></script>
+<script src="vendor/jszip.min.js?v=202611111958"></script>
+<script src="xls.js?v=202611111958"></script>
+<script src="gen.js?v=202611111958"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -655,13 +659,20 @@ function paintSubs() {
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td></tr>'; }).join('') + '</tbody></table>';
   const all = $('#ckAll');
-  if (all) all.onchange = () => document.querySelectorAll('.ck1:not(:disabled)').forEach(c => c.checked = all.checked);
+  if (all) all.onchange = () => { document.querySelectorAll('.ck1:not(:disabled)').forEach(c => c.checked = all.checked); goCount(); };
+  document.querySelectorAll('.ck1').forEach(c => c.onchange = goCount);
+  goCount();
   // 接手别的设备锁着的：点两下，记操作记录
   document.querySelectorAll('.take').forEach(b => b.onclick = async () => {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定接手？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '接手'; }, 3000); return; }
     try { const r = await api('/subs/claim', { ids: [+b.dataset.id], force: true }); if (r.ok.length) { addToList(subs.pending.filter(x => x.id === +b.dataset.id)); toast('接手了，已载入名单'); } } catch (e) { toast(e.message); }
   });
   document.querySelectorAll('.undo').forEach(b => b.onclick = async () => { try { await api('/sub/undo', { id: +b.dataset.id }); loadSubs(); } catch (e) { toast(e.message); } });
+}
+function goCount() {
+  const n = document.querySelectorAll('.ck1:checked:not(:disabled)').length;
+  $('#subLoad').textContent = n ? `开始处理 ${n} 人` : '开始处理';
+  $('#subLoad').disabled = !n;
 }
 const picked = () => [...document.querySelectorAll('.ck1:checked:not(:disabled)')].map(c => +c.value);
 function addToList(add) {
