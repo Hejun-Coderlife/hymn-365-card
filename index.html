@@ -205,10 +205,10 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="vendor/xlsx.full.min.js?v=202611111643"></script>
-<script src="vendor/exceljs.min.js?v=202611111643"></script>
-<script src="vendor/jszip.min.js?v=202611111643"></script>
-<script src="gen.js?v=202611111643"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111648"></script>
+<script src="vendor/exceljs.min.js?v=202611111648"></script>
+<script src="vendor/jszip.min.js?v=202611111648"></script>
+<script src="gen.js?v=202611111648"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -279,9 +279,9 @@ function update() {
   $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
   const w = Gen.buildRows([{ phone: '0' }], opt);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
-  $('#washList').innerHTML = `<div><i>第 1 张</i>${Gen.ymd(w[0].s)} – ${md(w[0].e)}<small>当天到月底</small></div>
+  $('#washList').innerHTML = `<div><i>第 1 张</i>${Gen.ymd(w[0].s)} – ${md(w[0].e)}<small>开卡当月</small></div>
     <div><i>第 2 张</i>${Gen.ymd(w[1].s)} – ${md(w[1].e)}</div>
-    <div><i>…</i>每月 1 号到月底</div>
+    <div><i>…</i>每张都是 1 号到月底</div>
     <div><i>第 12 张</i>${Gen.ymd(w[11].s)} – ${md(w[11].e)}</div>`;
 
   $('#tiles').innerHTML = `

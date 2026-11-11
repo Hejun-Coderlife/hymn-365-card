@@ -1,7 +1,7 @@
 /* 365 金卡导入表生成逻辑（浏览器和 node 测试共用）
    模板：~/Desktop/365金卡生成模板.xls
    每人 42 行代金券：
-     12 行「365金卡洗脸巾2」：第 1 行从开卡当天到当月月底，之后按自然月推（mode='calendar'）
+     12 行「365金卡洗脸巾2」：从开卡当月 1 号起按自然月推，每张 1 号到月底（mode='calendar'）
                              或从开卡日起每满一个月一段（mode='rolling'）
      30 行「365金卡代金券」：开卡当天 → 一年后同一天
    券号 = 365 + 开卡年份后 2 位 + 手机号 + 序号 01~42（共 18 位），如 365 26 18968256111 01。
@@ -31,7 +31,7 @@
       if (mode === 'rolling') {
         out.push([addMonths(start, i), addDays(addMonths(start, i + 1), -1)]);
       } else {
-        const s = i === 0 ? start : new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const s = new Date(start.getFullYear(), start.getMonth() + i, 1);   // 第 1 张也从当月 1 号算（2026-11-11 用户纠正：11 号开卡也是 11/1 开始）
         out.push([s, new Date(s.getFullYear(), s.getMonth() + 1, 0)]);
       }
     }
