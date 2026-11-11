@@ -42,8 +42,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* 会员输入：左边整块粘贴，右边实时识别结果 */
 .inbox{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-2);height:340px}
-.drop{position:relative;border-right:1px solid var(--line-2)}
-.drop textarea{width:100%;height:100%;border:0;padding:16px 18px;outline:none;resize:none;line-height:1.9;font-size:14px;background:transparent}
+.drop{position:relative;border-right:1px solid var(--line-2);display:flex;flex-direction:column;min-height:0}
+.drop textarea{width:100%;flex:1;min-height:0;border:0;padding:16px 18px;outline:none;resize:none;line-height:1.9;font-size:14px;background:transparent}
 .drop textarea::placeholder{color:var(--t4)}
 .drop textarea:focus{background:var(--paper)}
 .dropmask{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:var(--pink-bg);border:1px dashed var(--pink-deep);color:var(--pink-deep);letter-spacing:.12em}
@@ -51,6 +51,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .parsed{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .phd{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line-2);background:var(--paper);font-size:13px;color:var(--t2)}
 .phd span{flex:1}
+.phd em{font-style:normal;font-family:var(--num);font-size:15px;color:var(--t1);margin-right:8px}
+.phd{height:53px;flex:none}
 .phd b{font-family:var(--num);font-size:17px;font-weight:400;color:var(--t1);margin:0 2px}
 .btn.sm{padding:5px 12px;font-size:12px}
 .btn.file{display:inline-block}
@@ -59,6 +61,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .issues div{padding:6px 14px;background:var(--pink-bg);color:var(--pink-deep);border-bottom:1px solid var(--line)}
 .issues i{font-style:normal;font-family:var(--num);margin-right:8px}
 .plist{overflow:auto;flex:1}
+.plist .empty{padding:60px 30px;line-height:2}
 .plist table td{padding:6px 14px}
 .plist td.i{color:var(--t4);font-family:var(--num);width:46px}
 .plist td.nm.none{color:var(--t4)}
@@ -138,11 +141,12 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <h3>开卡会员 <span class="n" id="pCount">0</span></h3>
     <div class="inbox">
       <div class="drop" id="drop">
+        <div class="phd"><span><em>①</em>粘贴名单</span></div>
         <textarea id="txt" spellcheck="false" placeholder="直接粘贴名单，每行一人：&#10;张三 18968256111&#10;李四，13800000000&#10;18900000000（没有姓名也行）&#10;&#10;从 Excel 复制「姓名、手机号」两列粘进来就行，几百人也一次搞定。&#10;也可以把 Excel 文件直接拖到这里。"></textarea>
         <div class="dropmask">松手，读取这个 Excel</div>
       </div>
       <div class="parsed">
-        <div class="phd"><span id="okLine">还没有名单</span>
+        <div class="phd"><span><em>②</em>识别结果 · <span id="okLine">还没有名单</span></span>
           <label class="btn sm file">选 Excel 文件<input type="file" id="file" accept=".xls,.xlsx,.csv" hidden></label>
           <button class="btn sm" id="clear" type="button">清空</button></div>
         <div class="issues" id="issues"></div>
@@ -244,7 +248,7 @@ function update() {
   $('#issues').innerHTML = issues.slice(0, 50).map(x => `<div><i>第${x.n}行</i>${esc(x.raw.slice(0, 30))} · ${x.why}</div>`).join('');
   $('#plist').innerHTML = people.length ? '<table><tbody>' + people.map((p, i) => {
     return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:var(--t3)">${vn(p, 1)}…</td></tr>`;
-  }).join('') + '</tbody></table>' : '';
+  }).join('') + '</tbody></table>' : '<div class="empty">← 在左边粘贴名单<br>这里会列出认出来的每个人，方便核对</div>';
 
   $('#dateSub').textContent = `代金券有效期 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}`;
   $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
