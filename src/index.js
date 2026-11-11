@@ -181,6 +181,24 @@ async function handle(req, env) {
     const r = await db.prepare('SELECT d.id, u.role, d.label, d.created, d.last_at FROM devices d JOIN users u ON u.id = d.uid ORDER BY u.role, d.last_at DESC').all();
     return json({ devices: r.results, me: u.did });
   }
+  // 账号与设备页：两个账号 + 各自登录的设备
+  if (p === '/accounts' && req.method === 'GET') {
+    needOp();
+    const us = (await db.prepare('SELECT id, role, dev_limit FROM users ORDER BY id').all()).results;
+    const ds = (await db.prepare('SELECT id, uid, label, created, last_at FROM devices ORDER BY last_at DESC').all()).results;
+    return json({ me: u.did, accounts: us.map((x) => ({ role: x.role, dev_limit: x.dev_limit, devices: ds.filter((d) => d.uid === x.id) })) });
+  }
+  // 手动移出一台设备（连同它的会话，马上下线）；不能移出自己这台
+  if (p === '/devices/del' && req.method === 'POST') {
+    needOp();
+    const id = Number((await body(req)).id) || 0;
+    if (id === u.did) throw bad('不能移出你正在用的这台');
+    const d = await db.prepare('SELECT d.label, u.role FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
+    if (!d) throw bad('这台设备已经不在了');
+    await db.batch([db.prepare('DELETE FROM sessions WHERE did = ?').bind(id), db.prepare('DELETE FROM devices WHERE id = ?').bind(id)]);
+    await audit(db, u.role, 'device_remove', ROLE_NAME[d.role] + ' ' + d.label);
+    return json({ ok: true });
+  }
   if (p === '/password' && req.method === 'POST') {
     needOp();
     const b = await body(req), role = b.role === 'staff' ? 'staff' : 'op', pass = String(b.password || '');

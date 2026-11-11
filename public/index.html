@@ -66,7 +66,23 @@ button,input,select,textarea{font:inherit;color:inherit}
 .plist table td{padding:6px 14px}
 .plist td.i{color:var(--t4);font-family:var(--num);width:46px}
 .plist td.nm.none{color:var(--t4)}
-.acct{display:flex;gap:14px;align-items:center;font-size:13px;color:var(--t3)}
+.nav a{cursor:pointer}
+.nav a[hidden],.nav .grp[hidden],.foot[hidden]{display:none}
+.sidebar .foot.me{margin-top:0;border-top:1px solid var(--line-2)}
+.sidebar .foot.me b{font-weight:500;color:var(--t1)}
+.utable table{border-top:1px solid var(--t1)}
+.utable th{background:#fff;font-size:12px;color:var(--t3);font-weight:400;padding:12px 16px}
+.utable td{padding:16px;font-size:14px;vertical-align:middle}
+.utable .dvn{font-family:var(--num);font-size:16px;border-bottom:1px solid var(--t1);cursor:pointer;background:none;border-top:0;border-left:0;border-right:0;padding:0 0 1px}
+.utable .acts{text-align:right;white-space:nowrap}
+.utable .acts .btn+.btn{margin-left:8px}
+.utable tr.devs td{background:var(--paper);padding:4px 16px 12px}
+.dv{display:flex;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+.dv:last-child{border-bottom:0}
+.dv .l{flex:1} .dv .t{color:var(--t3)} .dv .me{color:var(--pink-deep);margin-left:8px;font-size:12px}
+.pwrow{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.pwrow input{border:1px solid var(--line-2);padding:7px 10px;font-size:13px;outline:none;width:180px}
+.pwrow input:focus{border-color:var(--ink)}
 .subbox{border:1px solid var(--line-2)}
 .sublist{max-height:300px;overflow:auto}
 .sublist table td,.sublist table th{padding:7px 12px}
@@ -74,19 +90,6 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sublist .st{font-size:12px;padding:2px 7px}
 .sublist .st.done{color:#2F5D45;background:rgba(47,93,69,.08)} .sublist .st.del{color:var(--t4);background:var(--paper)}
 .sublist .loaded{color:var(--pink-deep);font-size:12px}
-.modal{position:fixed;inset:0;background:rgba(22,20,15,.28);display:flex;align-items:center;justify-content:center;z-index:50}
-.modal[hidden]{display:none}
-.mbox{background:#fff;width:min(620px,92vw);max-height:86vh;overflow:auto;border:1px solid var(--line-2)}
-.mhd{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line-2)}
-.mhd b{font-weight:500;letter-spacing:.06em}
-.mbody{padding:6px 22px 24px}
-.mbody h4{font-size:12px;font-weight:500;letter-spacing:.16em;color:var(--t3);margin:20px 0 10px}
-.mbody h4 .hint{letter-spacing:0;margin-left:8px;font-weight:400}
-.dv{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
-.dv .r{width:56px;color:var(--t3)} .dv .l{flex:1} .dv .t{color:var(--t3)} .dv .me{color:var(--pink-deep);margin-left:6px}
-.pw{display:flex;gap:10px;align-items:center}
-.pw select,.pw input{border:1px solid var(--line-2);padding:7px 10px;font-size:13px;outline:none;background:#fff}
-.pw input{flex:1}
 .tools{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:1px solid var(--line-2);background:#fff;padding:9px 18px;cursor:pointer;letter-spacing:var(--track);font-size:13px}
 .btn:hover{border-color:var(--ink)}
@@ -155,20 +158,21 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </div>
   <nav class="nav">
     <div class="grp">会员</div>
-    <a class="on"><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="5" width="17" height="12"/><line x1="2.5" y1="9" x2="19.5" y2="9"/><line x1="5.5" y1="13.5" x2="10" y2="13.5"/></svg></span><span>365金卡导入表</span></a>
+    <a class="on" data-panel="tool"><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="5" width="17" height="12"/><line x1="2.5" y1="9" x2="19.5" y2="9"/><line x1="5.5" y1="13.5" x2="10" y2="13.5"/></svg></span><span>365金卡导入表</span></a>
+    <div class="grp" data-op hidden>管理</div>
+    <a data-panel="users" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="7.5" r="3"/><path d="M2.5 18.5c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2"/><circle cx="15.5" cy="8.5" r="2.4"/><path d="M14.2 13.6c2.6-.2 4.6 1.3 5.3 4.9"/></svg></span><span>账号与设备</span></a>
   </nav>
   <div class="foot">每人 42 张券<br>洗脸巾 12 张 · 代金券 30 张<br>另附 3 次护理导入</div>
+  <div class="foot me" data-op hidden><b>操作员</b><br><button class="lnk" id="outBtn" type="button">退出登录</button></div>
 </aside>
 
 <div class="main">
+<div class="panel" id="p-tool">
   <header class="pagehead">
     <div>
       <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
       <h2>365金卡 导入表生成</h2>
       <p>填姓名和手机号，每个顾客单独一个 Excel（.xls），可选建文件夹、压缩或散放</p>
-    </div>
-    <div class="acct" id="acct" hidden>
-      <span>操作员</span><button class="lnk" id="devBtn" type="button">设备与密码</button><button class="lnk" id="outBtn" type="button">退出</button>
     </div>
   </header>
 
@@ -249,23 +253,29 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-<div class="modal" id="modal" hidden><div class="mbox">
-  <div class="mhd"><b>设备与密码</b><button class="lnk" id="mClose" type="button">关闭</button></div>
-  <div class="mbody">
-    <h4>正在登录的设备 <span class="hint">每个账号最多 5 台，再多会自动挤掉最久没用的</span></h4>
-    <div id="devList"></div>
-    <h4>改密码 <span class="hint">改完后，这个账号在其他设备上都要重新登录</span></h4>
-    <div class="pw"><select id="pwRole"><option value="staff">店员账号</option><option value="op">操作员账号</option></select>
-      <input type="text" id="pwNew" placeholder="新密码，至少 6 位" autocomplete="off"><button class="btn sm" id="pwGo" type="button">保存</button></div>
-  </div>
-</div></div>
+<!-- 账号与设备（照会员助手「账号与门店」的样子，2026-11-11 用户要求） -->
+<div class="panel" id="p-users" hidden>
+  <header class="pagehead">
+    <div>
+      <div class="eyebrow">赫眉 HYMN · 管理</div>
+      <h2>账号与设备</h2>
+      <p>两个共用账号，每个最多 5 台设备同时登录；第 6 台登录时，最久没用的那台自动退出</p>
+    </div>
+  </header>
+  <section class="sec">
+    <h3>账号 <span class="n">2</span></h3>
+    <div class="utable" id="uTable"></div>
+  </section>
+</div>
+</div>
 
-<script src="api.js?v=202611111850"></script>
-<script src="vendor/xlsx.full.min.js?v=202611111850"></script>
-<script src="vendor/jszip.min.js?v=202611111850"></script>
-<script src="xls.js?v=202611111850"></script>
-<script src="gen.js?v=202611111850"></script>
+<div class="toast" id="toast"></div>
+
+<script src="api.js?v=202611111927"></script>
+<script src="vendor/xlsx.full.min.js?v=202611111927"></script>
+<script src="vendor/jszip.min.js?v=202611111927"></script>
+<script src="xls.js?v=202611111927"></script>
+<script src="gen.js?v=202611111927"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -592,22 +602,45 @@ async function markExported() {
   } catch (e) { toast('导出好了，但标「已导出」失败：' + e.message); }
 }
 
-/* ---------- 设备与密码 ---------- */
-async function openModal() {
-  $('#modal').hidden = false;
-  try {
-    const { devices, me } = await api('/devices');
-    const R = { op: '操作员', staff: '店员' };
-    $('#devList').innerHTML = devices.map(d => `<div class="dv"><span class="r">${R[d.role]}</span><span class="l">${esc(d.label)}${d.id === me ? '<span class="me">这台</span>' : ''}</span><span class="t">最近 ${tm(d.last_at)}</span></div>`).join('') || '<div class="empty">没有</div>';
-  } catch (e) { $('#devList').textContent = e.message; }
+/* ---------- 账号与设备 ---------- */
+const RN = { op: '操作员', staff: '店员' };
+let openDev = {}, pwOpen = '';
+async function loadUsers() {
+  let d;
+  try { d = await api('/accounts'); } catch (e) { $('#uTable').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  $('#uTable').innerHTML = '<table><thead><tr><th>账号</th><th>谁用</th><th>登录设备</th><th>最近登录</th><th></th></tr></thead><tbody>' +
+    d.accounts.map(a => {
+      const last = a.devices.length ? Math.max(...a.devices.map(x => x.last_at || 0)) : 0;
+      return `<tr><td>${RN[a.role]}</td><td style="color:var(--t3)">${a.role === 'op' ? '电脑上导出（你也用这个）' : '店员手机上登记'}</td>
+        <td><button class="dvn" data-r="${a.role}" type="button">${a.devices.length} / ${a.dev_limit}</button></td>
+        <td class="num">${last ? tm(last) : '—'}</td>
+        <td class="acts">${pwOpen === a.role
+          ? `<span class="pwrow"><input id="pw_${a.role}" placeholder="新密码，至少 6 位" autocomplete="off"><button class="btn sm" data-pwsave="${a.role}" type="button">保存</button><button class="btn sm" data-pwcancel type="button">取消</button></span>`
+          : `<button class="btn sm" data-pw="${a.role}" type="button">重置密码</button>`}</td></tr>` +
+        (openDev[a.role] ? `<tr class="devs"><td colspan="5">${a.devices.length ? a.devices.map(x => `<div class="dv"><span class="l">${esc(x.label)}${x.id === d.me ? '<span class="me">这台</span>' : ''}</span><span class="t">首次 ${tm(x.created)}　最近 ${tm(x.last_at)}</span>${x.id === d.me ? '' : `<button class="btn sm" data-kick="${x.id}" type="button">移出</button>`}</div>`).join('') : '<div class="dv"><span class="l" style="color:var(--t3)">没有设备登录</span></div>'}</td></tr>` : '');
+    }).join('') + '</tbody></table>';
+  document.querySelectorAll('.dvn').forEach(b => b.onclick = () => { openDev[b.dataset.r] = !openDev[b.dataset.r]; loadUsers(); });
+  document.querySelectorAll('[data-pw]').forEach(b => b.onclick = () => { pwOpen = b.dataset.pw; loadUsers().then(() => { const i = $('#pw_' + pwOpen); if (i) i.focus(); }); });
+  document.querySelectorAll('[data-pwcancel]').forEach(b => b.onclick = () => { pwOpen = ''; loadUsers(); });
+  document.querySelectorAll('[data-pwsave]').forEach(b => b.onclick = async () => {
+    const pw = $('#pw_' + b.dataset.pwsave).value.trim();
+    if (pw.length < 6) return toast('密码至少 6 位');
+    try { await api('/password', { role: b.dataset.pwsave, password: pw }); pwOpen = ''; loadUsers(); toast(RN[b.dataset.pwsave] + '密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
+  });
+  document.querySelectorAll('[data-kick]').forEach(b => b.onclick = async () => {
+    if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定移出？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '移出'; }, 3000); return; }
+    try { await api('/devices/del', { id: +b.dataset.kick }); toast('已移出，那台设备要重新登录'); loadUsers(); } catch (e) { toast(e.message); }
+  });
 }
-$('#devBtn').onclick = openModal;
-$('#mClose').onclick = () => { $('#modal').hidden = true; };
-$('#pwGo').onclick = async () => {
-  const pw = $('#pwNew').value.trim();
-  if (pw.length < 6) return toast('密码至少 6 位');
-  try { await api('/password', { role: $('#pwRole').value, password: pw }); $('#pwNew').value = ''; toast('改好了'); } catch (e) { toast(e.message); }
-};
+// 侧栏切换（#view=users 可直接打开）
+function showPanel(v) {
+  if (v !== 'users') v = 'tool';
+  document.querySelectorAll('.nav a[data-panel]').forEach(a => a.classList.toggle('on', a.dataset.panel === v));
+  $('#p-tool').hidden = v !== 'tool'; $('#p-users').hidden = v !== 'users';
+  if (v === 'users') loadUsers();
+  history.replaceState(null, '', v === 'users' ? '#view=users' : location.pathname);
+}
+document.querySelectorAll('.nav a[data-panel]').forEach(a => a.onclick = () => showPanel(a.dataset.panel));
 $('#outBtn').onclick = logout;
 
 update();
@@ -615,7 +648,8 @@ update();
 if (location.protocol !== 'file:') {
   api('/me').then(r => {
     if (r.role !== 'op') { location.href = '/store.html'; return; }
-    $('#acct').hidden = false; $('#subSec').hidden = false; loadSubs();
+    document.querySelectorAll('[data-op]').forEach(x => x.hidden = false); $('#subSec').hidden = false; loadSubs();
+    if (/view=users/.test(location.hash)) showPanel('users');
   }).catch(() => {});
 }
 </script>
