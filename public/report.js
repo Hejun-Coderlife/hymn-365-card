@@ -56,14 +56,15 @@
 
   function draw(D, logo) {
     const W = 540, PAD = 36, ROW = 38, S2 = 2;
-    const C = { ink: '#16140F', t3: '#9C958A', line: '#E3DFD6', track: '#EFEBE3', paper: '#FAF7F2', pink: '#D9A6AE', deep: '#B9808B', orange: '#d9804a' };
+    const C = { ink: '#16140F', t3: '#9C958A', line: '#E3DFD6', track: '#EFEBE3', paper: '#FAF7F2', gold: '#C9A15A', deep: '#A27B3A', light: '#F0D9A8' };   // 2026-11-11 用户：粉色太淡，改金色系（同侧栏 365 金卡的金光）
     const NUM = 'Didot, "Bodoni 72", Georgia, serif', SANS = '"PingFang SC", "Helvetica Neue", sans-serif', SONG = '"Songti SC", "STSong", serif';
     const rows = D.list.length ? D.list : [];
     const listH = Math.max(1, rows.length) * ROW, H = 250 + 44 + listH + 70;
     const cv = document.createElement('canvas'); cv.width = W * S2; cv.height = H * S2;
     const g = cv.getContext('2d'); g.scale(S2, S2);
     g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-    g.fillStyle = C.pink; g.fillRect(0, 0, W, 4);
+    const band = g.createLinearGradient(0, 0, W, 0); band.addColorStop(0, C.deep); band.addColorStop(0.5, C.light); band.addColorStop(1, C.deep);
+    g.fillStyle = band; g.fillRect(0, 0, W, 4);
     let y = 44;
     if (logo) g.drawImage(logo, PAD, y - 16, 84, 84 * logo.height / logo.width);
     g.font = '10px ' + SANS; g.fillStyle = C.t3; spaced(g, '365 金卡办卡战报', W - PAD, y, 2.5, 'right');
@@ -96,7 +97,7 @@
       g.font = '13px ' + SANS; const nm = fit(g, o.name, nameW - 8 - (sub ? (D.by === 'staff' ? 64 : 34) : 0)); g.fillText(nm, PAD + 28, mid);
       if (sub) { const nx = PAD + 28 + g.measureText(nm).width + 6; g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText(fit(g, sub, barX - nx - 8), nx, mid); }
       g.fillStyle = C.track; g.fillRect(barX, mid - 7, barW, 6);
-      if (o.n) { g.fillStyle = C.pink; g.fillRect(barX, mid - 7, Math.max(2, barW * o.n / max), 6); }
+      if (o.n) { g.fillStyle = C.gold; g.fillRect(barX, mid - 7, Math.max(2, barW * o.n / max), 6); }
       g.textAlign = 'right'; g.font = '17px ' + NUM; g.fillStyle = o.n ? C.ink : C.t3; g.fillText(String(o.n), barX + barW + 48, mid);
       g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText(`新 ${o.nw} · 续 ${o.rn}`, W - PAD, mid); g.textAlign = 'left';
     });
