@@ -79,13 +79,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .opt label{display:block;font-size:12px;color:var(--t3);letter-spacing:.12em;margin-bottom:8px}
 .opt input{border:0;border-bottom:1px solid var(--line-2);padding:4px 0;outline:none;font-family:var(--num);font-size:20px;width:100%;background:transparent}
 .opt input:focus{border-bottom-color:var(--ink)}
-.seg{display:flex;border:1px solid var(--line-2)}
-.seg button{flex:1;border:0;background:#fff;padding:8px 6px;cursor:pointer;font-size:13px;color:var(--t2)}
-.seg button+button{border-left:1px solid var(--line-2)}
-.seg button.on{background:var(--ink);color:#fff}
 .rule{display:flex;align-items:baseline;gap:6px;padding:4px 0 5px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
 .rule b{font-family:var(--num);font-size:20px;font-weight:400}
 .rule i{font-style:normal;font-size:12px;color:var(--t3);border:1px solid var(--line-2);padding:0 6px}
+.wl div{display:flex;gap:10px;align-items:baseline;font-family:var(--num);font-size:15px;line-height:1.75}
+.wl i{font-style:normal;font-family:var(--sans);font-size:12px;color:var(--t3);width:46px;flex:none}
+.wl small{font-family:var(--sans);font-size:12px;color:var(--pink-deep);margin-left:4px}
 .opt .sub{font-size:12px;color:var(--t3);margin-top:8px}
 
 /* 概览数字 */
@@ -169,12 +168,8 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
         <div class="sub" id="noSub"></div>
       </div>
       <div class="opt">
-        <label>洗脸巾 12 张怎么分月</label>
-        <div class="seg" id="mode">
-          <button type="button" data-v="calendar" class="on">按自然月</button>
-          <button type="button" data-v="rolling">按开卡日满月</button>
-        </div>
-        <div class="sub" id="modeSub"></div>
+        <label>洗脸巾 12 张 · 按自然月</label>
+        <div class="wl" id="washList"></div>
       </div>
     </div>
   </section>
@@ -207,7 +202,7 @@ const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-$
 $('#date').value = iso(today);
 
 let people = [];      // 识别出的有效名单（已去重）
-let mode = 'calendar';
+const mode = 'calendar';   // 2026-11-11 用户定：固定按自然月，去掉了「按开卡日满月」切换
 
 // 每行找一个 11 位手机号，剩下的字当姓名；找不到的、重复的列进「问题」
 function parse(text) {
@@ -253,7 +248,11 @@ function update() {
   $('#dateSub').textContent = `代金券有效期 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}`;
   $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
   const w = Gen.buildRows([{ phone: '0' }], opt);
-  $('#modeSub').textContent = `第 1 张 ${Gen.ymd(w[0].s)}–${Gen.ymd(w[0].e)}，第 2 张 ${Gen.ymd(w[1].s)}–${Gen.ymd(w[1].e)}`;
+  const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  $('#washList').innerHTML = `<div><i>第 1 张</i>${Gen.ymd(w[0].s)} – ${md(w[0].e)}<small>当天到月底</small></div>
+    <div><i>第 2 张</i>${Gen.ymd(w[1].s)} – ${md(w[1].e)}</div>
+    <div><i>…</i>每月 1 号到月底</div>
+    <div><i>第 12 张</i>${Gen.ymd(w[11].s)} – ${md(w[11].e)}</div>`;
 
   $('#tiles').innerHTML = `
     <div class="tile"><div class="k">会员</div><div class="v">${people.length}<small>人</small></div></div>
@@ -308,11 +307,6 @@ const drop = $('#drop');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
 $('#date').oninput = update;
-document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
-  mode = b.dataset.v;
-  document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b));
-  update();
-});
 $('#go').onclick = () => {
   const { opt } = update();
   if (!people.length) return;
