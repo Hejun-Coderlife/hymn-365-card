@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>赫眉 HYMN · 365金卡导入表</title>
+<!-- 风格照 hymn-douyin-board：纯白底、发丝线分区、直角无阴影、数字用 Didot、粉只做点缀 -->
+<style>
+:root{
+  --bg:#FFFFFF; --paper:#FAFAF8; --line:#F0EDE6; --line-2:#E3DFD6;
+  --ink:#16140F; --t1:#16140F; --t2:#4A453C; --t3:#9C958A; --t4:#B4ADA1;
+  --pink:#D9A6AE; --pink-deep:#B9808B; --pink-bg:#FAF2F3;
+  --sans:-apple-system,"SF Pro Text","PingFang SC",system-ui,sans-serif;
+  --num:Didot,"Bodoni 72",Georgia,"Songti SC",serif;
+  --nav-w:214px; --track:.06em;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);color:var(--t1);background:var(--bg);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);border-right:1px solid var(--line-2);background:#fff;display:flex;flex-direction:column}
+.sidebar .logo{padding:34px 22px 26px;border-bottom:1px solid var(--line-2)}
+.sidebar .logo img{height:30px;display:block}
+.sidebar .logo .st{margin-top:10px;font-size:10px;letter-spacing:.32em;color:var(--t3)}
+.nav{padding:18px 0}
+.nav .grp{padding:14px 22px 8px;font-size:11px;letter-spacing:.2em;color:var(--t4)}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 22px;color:var(--t2);text-decoration:none;border-left:2px solid transparent;cursor:default}
+.nav a.on{color:var(--t1);border-left-color:var(--ink);background:var(--paper)}
+.nav .ico{display:flex}
+.sidebar .foot{margin-top:auto;padding:18px 22px;border-top:1px solid var(--line-2);font-size:12px;color:var(--t3);line-height:1.8}
+
+.main{margin-left:var(--nav-w);padding:44px 52px 80px;max-width:1280px}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:26px;border-bottom:1px solid var(--line-2)}
+.eyebrow{font-size:11px;letter-spacing:.24em;color:var(--t3)}
+.pagehead h2{font-size:30px;font-weight:500;letter-spacing:var(--track);margin:6px 0 4px}
+.pagehead p{color:var(--t3);font-size:13px}
+
+.sec{margin-top:34px}
+.sec h3{font-size:12px;font-weight:500;letter-spacing:.2em;color:var(--t3);margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.sec h3 .n{font-family:var(--num);font-size:15px;color:var(--t1);letter-spacing:0}
+
+/* 会员输入 */
+.people{border-top:1px solid var(--line-2)}
+.prow{display:grid;grid-template-columns:44px 1fr 1.3fr 40px;align-items:center;border-bottom:1px solid var(--line)}
+.prow .i{font-family:var(--num);color:var(--t3);text-align:center;font-size:15px}
+.prow input{border:0;border-left:1px solid var(--line);padding:13px 14px;background:transparent;outline:none;width:100%}
+.prow input:focus{background:var(--paper)}
+.prow input::placeholder{color:var(--t4)}
+.prow input.bad{color:var(--pink-deep);background:var(--pink-bg)}
+.prow .del{border:0;background:none;color:var(--t4);cursor:pointer;font-size:18px;height:100%}
+.prow .del:hover{color:var(--pink-deep)}
+.prow.hd{color:var(--t3);font-size:12px;letter-spacing:.12em;background:var(--paper)}
+.prow.hd span{padding:9px 14px;border-left:1px solid var(--line)}
+.prow.hd span:first-child{border-left:0}
+.tools{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line-2);background:#fff;padding:9px 18px;cursor:pointer;letter-spacing:var(--track);font-size:13px}
+.btn:hover{border-color:var(--ink)}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink);padding:13px 30px;font-size:14px}
+.btn.pri:disabled{background:var(--t4);border-color:var(--t4);cursor:not-allowed}
+.hint{font-size:12px;color:var(--t3)}
+.paste{display:none;margin-top:12px}
+.paste.on{display:block}
+.paste textarea{width:100%;height:120px;border:1px solid var(--line-2);padding:12px 14px;outline:none;resize:vertical;line-height:1.8}
+.paste textarea:focus{border-color:var(--ink)}
+
+/* 设置 */
+.opts{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-2)}
+.opt{padding:16px 20px;border-left:1px solid var(--line-2)}
+.opt:first-child{border-left:0}
+.opt label{display:block;font-size:12px;color:var(--t3);letter-spacing:.12em;margin-bottom:8px}
+.opt input{border:0;border-bottom:1px solid var(--line-2);padding:4px 0;outline:none;font-family:var(--num);font-size:20px;width:100%;background:transparent}
+.opt input:focus{border-bottom-color:var(--ink)}
+.seg{display:flex;border:1px solid var(--line-2)}
+.seg button{flex:1;border:0;background:#fff;padding:8px 6px;cursor:pointer;font-size:13px;color:var(--t2)}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on{background:var(--ink);color:#fff}
+.opt .sub{font-size:12px;color:var(--t3);margin-top:8px}
+
+/* 概览数字 */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line-2)}
+.tile{padding:18px 20px;border-left:1px solid var(--line-2)}
+.tile:first-child{border-left:0}
+.tile .k{font-size:12px;color:var(--t3);letter-spacing:.12em}
+.tile .v{font-family:var(--num);font-size:30px;line-height:1.3;margin-top:4px}
+.tile .v small{font-size:14px;color:var(--t3);margin-left:4px;font-family:var(--sans)}
+.tile .v.pk{color:var(--pink-deep)}
+
+/* 预览表 */
+.pv{border:1px solid var(--line-2);max-height:560px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+th{position:sticky;top:0;background:var(--paper);font-weight:500;color:var(--t2);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-2);font-size:12px}
+td{padding:7px 12px;border-bottom:1px solid var(--line)}
+td.num{font-family:var(--num);font-size:14px}
+tr.grp td{background:var(--pink-bg);color:var(--t1);font-weight:500;padding:9px 12px;border-bottom:1px solid var(--line-2)}
+tr.grp td .ph{font-family:var(--num);font-weight:400;margin-left:10px;color:var(--t2)}
+tr.wash td:first-child{border-left:2px solid var(--pink)}
+.empty{padding:50px;text-align:center;color:var(--t4)}
+
+.bar{position:sticky;bottom:0;margin-top:34px;padding:18px 0;background:rgba(255,255,255,.96);border-top:1px solid var(--line-2);display:flex;align-items:center;gap:18px}
+.bar .fn{font-size:13px;color:var(--t2)}
+.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 22px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <img src="logo-ink.png" alt="赫眉 HYMN">
+    <div class="st">STUDIO</div>
+  </div>
+  <nav class="nav">
+    <div class="grp">会员</div>
+    <a class="on"><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="5" width="17" height="12"/><line x1="2.5" y1="9" x2="19.5" y2="9"/><line x1="5.5" y1="13.5" x2="10" y2="13.5"/></svg></span><span>365金卡导入表</span></a>
+  </nav>
+  <div class="foot">每人 42 张券<br>洗脸巾 12 张 · 代金券 30 张<br>另附 3 次护理导入</div>
+</aside>
+
+<div class="main">
+  <header class="pagehead">
+    <div>
+      <div class="eyebrow">赫眉 HYMN · 会员卡项</div>
+      <h2>365金卡 导入表生成</h2>
+      <p>填姓名和手机号，一键导出系统导入用的 Excel（.xls）</p>
+    </div>
+  </header>
+
+  <section class="sec">
+    <h3>开卡会员 <span class="n" id="pCount">0</span></h3>
+    <div class="people" id="people">
+      <div class="prow hd"><span>#</span><span>姓名</span><span>手机号（= 会员编号）</span><span></span></div>
+    </div>
+    <div class="tools">
+      <button class="btn" id="add" type="button">＋ 添加一人</button>
+      <button class="btn" id="pasteTog" type="button">批量粘贴</button>
+      <span class="hint">手机号必须是 11 位；姓名只用来命名文件、方便核对，不进表格</span>
+    </div>
+    <div class="paste" id="paste">
+      <textarea id="pasteTxt" placeholder="每行一人，姓名和手机号用空格或逗号隔开，例如：&#10;张三 18968256111&#10;李四，13800000000"></textarea>
+      <div class="tools"><button class="btn" id="pasteGo" type="button">加入名单</button><span class="hint">可以直接从 Excel 复制两列粘过来</span></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h3>设置</h3>
+    <div class="opts">
+      <div class="opt">
+        <label>开卡日期</label>
+        <input type="date" id="date">
+        <div class="sub" id="dateSub"></div>
+      </div>
+      <div class="opt">
+        <label>起始券号</label>
+        <input type="number" id="startNo" value="365001">
+        <div class="sub" id="noSub"></div>
+      </div>
+      <div class="opt">
+        <label>洗脸巾 12 张怎么分月</label>
+        <div class="seg" id="mode">
+          <button type="button" data-v="calendar" class="on">按自然月</button>
+          <button type="button" data-v="rolling">按开卡日满月</button>
+        </div>
+        <div class="sub" id="modeSub"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h3>概览</h3>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="sec">
+    <h3>代金券页预览</h3>
+    <div class="pv" id="pv"></div>
+  </section>
+
+  <div class="bar">
+    <button class="btn pri" id="go" type="button">导出 Excel</button>
+    <span class="fn" id="fn"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="gen.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today = new Date();
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+$('#date').value = iso(today);
+
+let people = [{ name: '', phone: '' }];
+let mode = 'calendar';
+
+function renderPeople() {
+  const box = $('#people');
+  box.querySelectorAll('.prow:not(.hd)').forEach(n => n.remove());
+  people.forEach((p, i) => {
+    const r = document.createElement('div');
+    r.className = 'prow';
+    r.innerHTML = `<span class="i">${i + 1}</span>
+      <input placeholder="姓名" value="${esc(p.name)}" data-k="name">
+      <input placeholder="11 位手机号" inputmode="numeric" value="${esc(p.phone)}" data-k="phone">
+      <button class="del" type="button" title="删掉这一行">×</button>`;
+    r.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+      p[inp.dataset.k] = inp.dataset.k === 'phone' ? inp.value.replace(/\D/g, '') : inp.value.trim();
+      if (inp.dataset.k === 'phone' && inp.value !== p.phone) inp.value = p.phone;
+      update();
+    }));
+    r.querySelector('.del').onclick = () => {
+      people.splice(i, 1);
+      if (!people.length) people.push({ name: '', phone: '' });
+      renderPeople(); update();
+    };
+    box.appendChild(r);
+  });
+}
+
+const okPhone = s => /^1\d{10}$/.test(s);
+function valid() { return people.filter(p => okPhone(p.phone)); }
+function curDate() { const [y, m, d] = $('#date').value.split('-').map(Number); return y ? new Date(y, m - 1, d) : today; }
+
+function update() {
+  // 标红：填了但不是 11 位，或者重复
+  const seen = {};
+  document.querySelectorAll('.prow:not(.hd)').forEach((r, i) => {
+    const p = people[i], inp = r.querySelector('[data-k=phone]');
+    const dup = p.phone && seen[p.phone]; seen[p.phone] = 1;
+    inp.classList.toggle('bad', !!p.phone && (!okPhone(p.phone) || !!dup));
+    inp.title = dup ? '这个手机号上面已经有了' : (p.phone && !okPhone(p.phone) ? '手机号要 11 位' : '');
+  });
+  const uniq = [], s2 = {};
+  valid().forEach(p => { if (!s2[p.phone]) { s2[p.phone] = 1; uniq.push(p); } });
+  const date = curDate(), startNo = parseInt($('#startNo').value, 10) || 365001;
+  const opt = { date, startNo, mode };
+  const rows = Gen.buildRows(uniq, opt);
+  const endNo = startNo + rows.length - 1;
+  const oneYear = Gen.addMonths(date, 12);
+
+  $('#pCount').textContent = uniq.length;
+  $('#dateSub').textContent = `代金券有效期 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}`;
+  $('#noSub').textContent = rows.length ? `本次用到 ${startNo} – ${endNo}` : '每人占 42 个号，多人接着往下编';
+  const w = Gen.buildRows([{ phone: '0' }], opt).slice(0, 12);
+  $('#modeSub').textContent = `第 1 张 ${Gen.ymd(w[0].s)}–${Gen.ymd(w[0].e)}，第 2 张 ${Gen.ymd(w[1].s)}–${Gen.ymd(w[1].e)}`;
+
+  $('#tiles').innerHTML = `
+    <div class="tile"><div class="k">会员</div><div class="v">${uniq.length}<small>人</small></div></div>
+    <div class="tile"><div class="k">代金券行数</div><div class="v">${rows.length}<small>行</small></div></div>
+    <div class="tile"><div class="k">券号</div><div class="v" style="font-size:22px;line-height:1.9">${rows.length ? startNo + ' – ' + endNo : '—'}</div></div>
+    <div class="tile"><div class="k">有效至</div><div class="v pk" style="font-size:22px;line-height:1.9">${Gen.ymd(oneYear)}</div></div>`;
+
+  if (!rows.length) {
+    $('#pv').innerHTML = '<div class="empty">填好手机号，这里就会出现预览</div>';
+  } else {
+    let h = '<table><thead><tr><th>活动名称</th><th>代金券号</th><th>券面值</th><th>可使用对象</th><th>对象编号</th><th>会员编号</th><th>开始日期</th><th>截至日期</th><th>取价规则</th><th>使用场景</th><th>需购满额</th></tr></thead><tbody>';
+    let last = null;
+    rows.forEach(r => {
+      if (r.who !== last) { last = r.who; h += `<tr class="grp"><td colspan="11">${esc(r.who.name || '（未填姓名）')}<span class="ph">${r.who.phone}</span></td></tr>`; }
+      h += `<tr class="${r.val === 15 ? 'wash' : ''}"><td>${r.act}</td><td class="num">${r.no}</td><td class="num">${r.val}</td><td>${r.obj}</td><td>${r.objNo}</td><td class="num">${r.phone}</td><td class="num">${Gen.ymd(r.s)}</td><td class="num">${Gen.ymd(r.e)}</td><td>${r.rule}</td><td>${r.scene}</td><td class="num">${r.min}</td></tr>`;
+    });
+    $('#pv').innerHTML = h + '</tbody></table>';
+  }
+
+  const bad = people.some(p => p.phone && !okPhone(p.phone));
+  $('#go').disabled = !uniq.length;
+  $('#fn').textContent = !uniq.length ? '还没有可用的手机号' :
+    (bad ? '有手机号不对（已标粉），导出时会跳过 · ' : '') + Gen.fileName(uniq, date);
+  return { uniq, opt };
+}
+
+$('#add').onclick = () => { people.push({ name: '', phone: '' }); renderPeople(); update(); document.querySelectorAll('.prow:not(.hd) input[data-k=name]')[people.length - 1].focus(); };
+$('#pasteTog').onclick = () => { $('#paste').classList.toggle('on'); $('#pasteTxt').focus(); };
+$('#pasteGo').onclick = () => {
+  const add = [];
+  $('#pasteTxt').value.split(/\n/).forEach(line => {
+    const m = line.match(/1\d{10}/);
+    if (!m) return;
+    const name = line.replace(m[0], '').replace(/[\s,，\t、:：]+/g, ' ').trim();
+    add.push({ name, phone: m[0] });
+  });
+  if (!add.length) return toast('没认出手机号');
+  people = people.filter(p => p.name || p.phone).concat(add);
+  $('#pasteTxt').value = ''; $('#paste').classList.remove('on');
+  renderPeople(); update(); toast(`加入 ${add.length} 人`);
+};
+$('#date').oninput = update;
+$('#startNo').oninput = update;
+document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
+  mode = b.dataset.v;
+  document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b));
+  update();
+});
+$('#go').onclick = () => {
+  const { uniq, opt } = update();
+  if (!uniq.length) return;
+  const { wb } = Gen.buildWorkbook(XLSX, uniq, opt);
+  XLSX.writeFile(wb, Gen.fileName(uniq, opt.date), { bookType: 'biff8' });
+  toast('已导出，在「下载」文件夹');
+};
+
+let tt;
+function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2200); }
+
+renderPeople(); update();
+</script>
+</body>
+</html>
