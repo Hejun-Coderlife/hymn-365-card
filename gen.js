@@ -80,11 +80,11 @@
   // 每个顾客单独一个文件（2026-11-11 用户要求「每个人单独一个表，不要做到一起」）
   const dstr = date => `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   const safe = t => String(t).replace(/[\\/:*?"<>|]/g, '');
-  function fileName(p, date) {
-    return `365金卡_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xls`;
+  function fileName(p, date, renew) {
+    return `365金卡${renew ? '续卡' : ''}_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xls`;
   }
-  function zipName(people, date) {
-    return `365金卡_${people.length}人_${dstr(date)}.zip`;
+  function zipName(people, date, renew) {
+    return `365金卡${renew ? '续卡' : ''}_${people.length}人_${dstr(date)}.zip`;
   }
 
   const api = { voucherNo, buildRows, buildXls, fileName, zipName, ymd, addMonths, WASH, CASH };
