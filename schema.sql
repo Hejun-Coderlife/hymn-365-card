@@ -43,7 +43,9 @@ CREATE TABLE IF NOT EXISTS subs (
   status   TEXT NOT NULL DEFAULT 'pending',
   done_at  INTEGER,
   del_at   INTEGER,
-  del_by   TEXT
+  del_by   TEXT,
+  lock_did INTEGER,           -- 载入就锁定：哪台设备载入了（别人不能再载入），2 小时没导出失效
+  lock_at  INTEGER
 );
 CREATE INDEX IF NOT EXISTS subs_status ON subs(status, created);
 CREATE INDEX IF NOT EXISTS subs_staff ON subs(staff_no, created);

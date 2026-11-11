@@ -9,6 +9,7 @@
 
 const DAY = 86400000;
 const SESSION_DAYS = 60;
+const LOCK_MS = 2 * 3600000;   // 载入锁 2 小时没导出自动失效
 const PBKDF2_ITER = 30000;          // 免费版每次请求只有 10ms CPU
 const DEVICE_DAYS = 3650;
 
@@ -153,9 +154,10 @@ async function handle(req, env) {
       const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, now - 30 * DAY).all();
       return json({ subs: r.results });
     }
-    const pend = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status = 'pending' ORDER BY id").all();
+    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
+    pend.results.forEach((x) => { if (!x.lock_did || x.lock_at < now - LOCK_MS) { x.lock_did = null; x.lock_dev = null; } });
     const done = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status <> 'pending' AND COALESCE(done_at, del_at) > ? ORDER BY COALESCE(done_at, del_at) DESC LIMIT 300").bind(now - 30 * DAY).all();
-    return json({ pending: pend.results, recent: done.results });
+    return json({ pending: pend.results, recent: done.results, me: u.did });
   }
   // 删除（只能删待处理的）：店员只能删自己工号的
   if (p === '/sub/del' && req.method === 'POST') {
@@ -183,6 +185,26 @@ async function handle(req, env) {
       }
       await audit(req, db, u.role, 'sub_done', ids.length + ' 条标为已导出：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
     }
+    return json({ ok: true });
+  }
+  // 载入就锁定（2026-11-11 用户要的）：一台设备载入后，别的操作员不能再载入，防止同一批人被导出两遍。
+  // 锁 2 小时没导出自动失效；force = 接手别人锁着的（记操作记录）
+  if (p === '/subs/claim' && req.method === 'POST') {
+    needOp();
+    const b = await body(req), ids = (b.ids || []).map(Number).filter((x) => x > 0).slice(0, 500), force = !!b.force;
+    const ok = [], busy = [];
+    for (const id of ids) {
+      const r = await db.prepare("UPDATE subs SET lock_did = ?, lock_at = ? WHERE id = ? AND status = 'pending' AND (lock_did IS NULL OR lock_did = ? OR lock_at < ? OR ?)")
+        .bind(u.did, now, id, u.did, now - LOCK_MS, force ? 1 : 0).run();
+      (r.meta.changes ? ok : busy).push(id);
+    }
+    if (force && ok.length) await audit(req, db, u.role, 'sub_take', '接手别的设备正在处理的 ' + ok.map((x) => '#' + x).join('、'));
+    return json({ ok, busy });
+  }
+  if (p === '/subs/release' && req.method === 'POST') {
+    needOp();
+    const ids = ((await body(req)).ids || []).map(Number).filter((x) => x > 0).slice(0, 500);
+    for (const id of ids) await db.prepare('UPDATE subs SET lock_did = NULL, lock_at = NULL WHERE id = ? AND lock_did = ?').bind(id, u.did).run();
     return json({ ok: true });
   }
   // 撤回「已导出」（点错了）
