@@ -184,7 +184,8 @@ async function handle(req, env) {
     const salt = randHex(16), keep = await sha256(cookie(req, 'c365_s'));
     await db.batch([
       db.prepare('UPDATE users SET salt = ?, hash = ?, fails = 0, lock_until = 0 WHERE id = ?').bind(salt, await pbkdf2(pass, salt), u.id),
-      db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(u.id, keep)
+      db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(u.id, keep),
+      db.prepare('DELETE FROM devices WHERE uid = ? AND id <> ?').bind(u.id, u.did)   // 设备也移出，n/5 才会变回 1（2026-11-12 用户：改了密码怎么还是 3/5）
     ]);
     await audit(req, db, who(u), 'password', acctName(u) + ' 自己改了密码');
     return json({ ok: true });
@@ -370,7 +371,8 @@ async function handle(req, env) {
     const keep = t.id === u.id ? await sha256(cookie(req, 'c365_s')) : '';
     await db.batch([
       db.prepare('UPDATE users SET salt = ?, hash = ?, fails = 0, lock_until = 0 WHERE id = ?').bind(salt, await pbkdf2(pass, salt), t.id),
-      db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(t.id, keep)   // 改完其他设备都要重新登录
+      db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(t.id, keep),   // 改完其他设备都要重新登录
+      db.prepare('DELETE FROM devices WHERE uid = ? AND id <> ?').bind(t.id, t.id === u.id ? u.did : 0)   // 设备也一起移出，名额清空
     ]);
     await audit(req, db, who(u), 'password', acctName(t) + ' 账号改了密码');
     return json({ ok: true });

@@ -385,14 +385,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121307"></script>
-<script src="report.js?v=202611121307"></script>
-<script src="xsel.js?v=202611121307"></script>
-<script src="datepick.js?v=202611121307"></script>
-<script src="api.js?v=202611121307"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121307"></script>
-<script src="xls.js?v=202611121307"></script>
-<script src="gen.js?v=202611121307"></script>
+<script src="stores.js?v=202611121311"></script>
+<script src="report.js?v=202611121311"></script>
+<script src="xsel.js?v=202611121311"></script>
+<script src="datepick.js?v=202611121311"></script>
+<script src="api.js?v=202611121311"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121311"></script>
+<script src="xls.js?v=202611121311"></script>
+<script src="gen.js?v=202611121311"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -785,7 +785,7 @@ $('#pwBox').onsubmit = async e => {
   e.preventDefault();
   if ($('#pwNew').value.length < 6) return $('#pwErr').textContent = '新密码至少 6 位';
   if ($('#pwNew').value !== $('#pwNew2').value) return $('#pwErr').textContent = '两次输的不一样';
-  try { await api('/password/self', { old: $('#pwOld').value, password: $('#pwNew').value }); $('#pwMask').hidden = true; toast('密码改好了，你别的设备要重新登录'); }
+  try { await api('/password/self', { old: $('#pwOld').value, password: $('#pwNew').value }); $('#pwMask').hidden = true; toast('密码改好了，你别的设备已移出，要重新登录'); if (/view=users/.test(location.hash)) loadUsers(); }
   catch (err) { $('#pwErr').textContent = err.message; }
 };
 let openDev = {}, pwOpen = 0, uData = null;
@@ -827,7 +827,7 @@ function paintUsers() {
     const id = +b.dataset.pwsave, pw = $('#pw_' + id).value.trim();
     if (pw.length < 6) return toast('密码至少 6 位');
     const a = d.accounts.find(x => x.id === id);
-    try { await api('/password', { uid: id, password: pw }); pwOpen = 0; loadUsers(); toast((a.role === 'op' ? a.name : a.store) + ' 密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
+    try { await api('/password', { uid: id, password: pw }); pwOpen = 0; loadUsers(); toast((a.role === 'op' ? a.name : a.store) + ' 密码改好了，其他设备已移出'); } catch (e) { toast(e.message); }
   });
   document.querySelectorAll('[data-kick]').forEach(b => b.onclick = async () => {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定移出？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '移出'; }, 3000); return; }
