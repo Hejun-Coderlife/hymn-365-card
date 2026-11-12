@@ -385,14 +385,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121119"></script>
-<script src="report.js?v=202611121119"></script>
-<script src="xsel.js?v=202611121119"></script>
-<script src="datepick.js?v=202611121119"></script>
-<script src="api.js?v=202611121119"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121119"></script>
-<script src="xls.js?v=202611121119"></script>
-<script src="gen.js?v=202611121119"></script>
+<script src="stores.js?v=202611121123"></script>
+<script src="report.js?v=202611121123"></script>
+<script src="xsel.js?v=202611121123"></script>
+<script src="datepick.js?v=202611121123"></script>
+<script src="api.js?v=202611121123"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121123"></script>
+<script src="xls.js?v=202611121123"></script>
+<script src="gen.js?v=202611121123"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -627,7 +627,7 @@ function paintSubs() {
       // 「其它」不是 365 金卡，不能放进名单导出；勾不了，处理完点「已处理」
       return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck">${oth ? '' : `<input type="checkbox" class="ck1" value="${x.id}" ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !inList.has(x.phone)) ? 'checked' : ''}>`}</td>`) +
       `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
-      `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(oth ? (x.note || (x.kind === 'refund' ? '没写备注' : '')) : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
+      `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(x.kind === 'refund' ? (x.pkg || '未选套餐') + (x.qty > 1 ? ' ×' + x.qty : '') + (x.note ? ' · ' + x.note : '') : oth ? (x.note || '') : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
       (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td><td class="acts">' +
@@ -657,9 +657,9 @@ $('#eStore').innerHTML = '<option value="">选门店</option>' + STORES.map(([m,
 function ePaint() {
   document.querySelectorAll('#eKind button').forEach(b => b.classList.toggle('on', b.dataset.v === eKind));
   document.querySelectorAll('#ePk button').forEach(b => b.classList.toggle('on', +b.dataset.i === ePk));
-  const flat = eKind === 'other' || eKind === 'refund';
-  $('#ePkRow').hidden = $('#eGiftRow').hidden = $('#eQtyRow').hidden = flat; $('#eNoteRow').hidden = !flat;
-  const g = eGift && !flat;
+  const flat = eKind === 'other', rf = eKind === 'refund';   // 退货：有套餐和数量、备注选填，没有送朋友
+  $('#ePkRow').hidden = $('#eQtyRow').hidden = flat; $('#eGiftRow').hidden = flat || rf; $('#eNoteRow').hidden = !(flat || rf);
+  const g = eGift && !flat && !rf;
   document.querySelectorAll('#eGift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === eGift));
   $('#eGnRow').hidden = $('#eGpRow').hidden = !g;
   $('#eNlab').textContent = g ? '被送的人' : '姓名'; $('#eplab').textContent = g ? '被送人手机' : '手机号';
@@ -698,19 +698,19 @@ $('#eCancel').onclick = () => { $('#eMask').hidden = true; };
 $('#eMask').onclick = e => { if (e.target === $('#eMask')) $('#eMask').hidden = true; };
 $('#eBox').onsubmit = async e => {
   e.preventDefault();
-  const flat = eKind === 'other' || eKind === 'refund';
+  const flat = eKind === 'other', rf = eKind === 'refund';
   if (!flat && ePk < 0) return $('#eErr').textContent = '请选套餐';
   if (eKind === 'refund' && !$('#eName').value.trim()) return $('#eErr').textContent = '退货请填顾客姓名';
   if (eKind === 'other' && !$('#eNote').value.trim()) return $('#eErr').textContent = '选了其它，请写备注';
   try {
     const r = await api('/sub/edit', { id: eCur.id, store: $('#eStore').value, staff_no: $('#eNo').value, kind: eKind, pkg: flat ? '' : PKG_NAMES[ePk], qty: flat ? null : $('#eQty').value,
-      note: flat ? $('#eNote').value.trim() : '', gift: eGift && !flat, giver_name: $('#eGname').value.trim(), giver_phone: $('#eGphone').value, name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
+      note: flat || rf ? $('#eNote').value.trim() : '', gift: eGift && !flat && !rf, giver_name: $('#eGname').value.trim(), giver_phone: $('#eGphone').value, name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
     $('#eMask').hidden = true; toast(r.same ? '没有改动' : '已修改，改动记在操作记录里');
     // 已经载入名单的，名单里那一行跟着换
     if (!r.same && loaded[eCur.phone]) {
       const ph = $('#ePhone').value.replace(/\D/g, '');
       $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : '', +$('#eQty').value > 1 ? '×' + (+$('#eQty').value) : ''].filter(Boolean).join(' ') : l).join('\n');
-      delete loaded[eCur.phone]; if (!flat) loaded[ph] = eCur.id; saveLoaded(); update();
+      delete loaded[eCur.phone]; if (!flat && !rf) loaded[ph] = eCur.id; saveLoaded(); update();
     }
     loadSubs();
   } catch (err) { $('#eErr').textContent = err.message; }

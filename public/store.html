@@ -121,12 +121,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="fx.js?v=202611121119"></script>
+<script src="fx.js?v=202611121123"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121119"></script>
-<script src="xsel.js?v=202611121119"></script>
-<script src="datepick.js?v=202611121119"></script>
-<script src="api.js?v=202611121119"></script>
+<script src="stores.js?v=202611121123"></script>
+<script src="xsel.js?v=202611121123"></script>
+<script src="datepick.js?v=202611121123"></script>
+<script src="api.js?v=202611121123"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -158,11 +158,12 @@ function save() {
 function paintKind() {
   document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
   document.querySelectorAll('#pk button').forEach(b => b.classList.toggle('on', +b.dataset.i === pkg));
-  $('#pkRow').hidden = !(kind === 'new' || kind === 'renew');
+  $('#pkRow').hidden = !(kind === 'new' || kind === 'renew' || kind === 'refund');   // 退货也选套餐（2026-11-12 用户）
   $('#noteRow').hidden = kind !== 'other' && kind !== 'refund';
   $('#note').placeholder = kind === 'refund' ? '选填：退了什么、为什么退' : '写清楚办的是什么';
   const g = gift && (kind === 'new' || kind === 'renew');
-  $('#giftRow').hidden = $('#qtyRow').hidden = !(kind === 'new' || kind === 'renew');
+  $('#giftRow').hidden = !(kind === 'new' || kind === 'renew');
+  $('#qtyRow').hidden = !(kind === 'new' || kind === 'renew' || kind === 'refund');
   document.querySelectorAll('#gift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === gift));
   $('#gnRow').hidden = $('#gpRow').hidden = !g;
   $('#nlab').textContent = g ? '被送的人' : '会员姓名'; $('#name').placeholder = g ? '被送的人姓名' : '姓名';
@@ -198,11 +199,11 @@ $('#f').onsubmit = async e => {
   if (IS_OP && !STORE) return msg('请先选门店');
   if (!no) return msg('请先选工号');
   if (!kind) return msg('请选新开365卡 / 365续卡 / 其它 / 退货');
-  const flat = kind === 'other' || kind === 'refund';
-  if (!flat && pkg < 0) return msg('请选套餐');
+  const flat = kind === 'other';
+  if (!flat && pkg < 0) return msg(kind === 'refund' ? '请选退的是哪个套餐' : '请选套餐');
   if (kind === 'refund' && !$('#name').value.trim()) { $('#name').focus(); return msg('退货请填顾客姓名'); }
   if (kind === 'other' && !$('#note').value.trim()) { $('#note').focus(); return msg('选了其它，请写备注'); }
-  const g = gift && !flat, gp = $('#gphone').value.replace(/\D/g, '');
+  const g = gift && !flat && kind !== 'refund', gp = $('#gphone').value.replace(/\D/g, '');
   if (g && !$('#gname').value.trim()) { $('#gname').focus(); return msg('请填送的人姓名'); }
   if (g && !/^1\d{10}$/.test(gp)) { $('#gphone').focus(); return msg('送的人手机号要 11 位'); }
   if (g && !$('#name').value.trim()) { $('#name').focus(); return msg('请填被送的人姓名'); }
@@ -211,7 +212,7 @@ $('#f').onsubmit = async e => {
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: flat ? '' : PKG_NAMES[pkg], qty: flat ? null : qtyN(), note: flat ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
+    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: flat ? '' : PKG_NAMES[pkg], qty: flat ? null : qtyN(), note: flat || kind === 'refund' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
     $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; $('#qty').value = 1; $('#gname').value = ''; $('#gphone').value = ''; kind = ''; pkg = -1; gift = false; dateTouched = false; paintKind(); save();
     load();
@@ -228,7 +229,7 @@ async function load() {
     $('#cnt').textContent = subs.length || '';
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
-        <div class="d">${s.kind === 'refund' ? '退货 · ' + ymd(s.sdate) + (s.note ? ' · ' + esc(s.note) : '') : s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : KIND_NAME[s.kind] + (s.pkg ? ' · ' + esc(s.pkg) + (s.qty > 1 ? ' ×' + s.qty : '') : '') + (s.kind === 'renew' ? ' · 原卡到期 ' + ymd(s.sdate) : ' · ' + ymd(s.sdate)) + (s.giver_phone ? ' · ' + esc(s.giver_name || '') + ' 送的' : '')}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+        <div class="d">${s.kind === 'refund' ? '退货 · ' + esc(s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + ' · ' + ymd(s.sdate) + (s.note ? ' · ' + esc(s.note) : '') : s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : KIND_NAME[s.kind] + (s.pkg ? ' · ' + esc(s.pkg) + (s.qty > 1 ? ' ×' + s.qty : '') : '') + (s.kind === 'renew' ? ' · 原卡到期 ' + ymd(s.sdate) : ' · ' + ymd(s.sdate)) + (s.giver_phone ? ' · ' + esc(s.giver_name || '') + ' 送的' : '')}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
       <span class="st ${s.status}">${s.status === 'done' ? '已处理' : '待处理'}</span>
       ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
       : '<div class="empty">还没有提交过</div>';

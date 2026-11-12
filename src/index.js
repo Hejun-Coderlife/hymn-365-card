@@ -52,7 +52,7 @@ const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : u.name ? '�
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
 const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它', refund: '退货' };   // refund 2026-11-12 加：只给后台处理，不导表   // 2026-11-12 用户改的叫法
-const subDesc = (s) => s.kind === 'refund' ? '退货 · ' + s.sdate + (s.note ? '（' + s.note + '）' : '') : s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
+const subDesc = (s) => s.kind === 'refund' ? '退货 ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + ' · ' + s.sdate + (s.note ? '（' + s.note + '）' : '') : s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
   (s.giver_phone ? ' · 送朋友：' + (s.giver_name || '') + ' ' + s.giver_phone + ' 送的' : '');
 
 /* ---- 会话 / 设备 ---- */
@@ -95,15 +95,17 @@ function checkSub(b) {
   if (!KIND_NAME[kind]) throw bad('请选新开卡 / 续卡 / 其它');
   let pkg = null, note = null;
   if (kind === 'other') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' '); if (!note) throw bad('选了其它，请写备注'); }
-  else if (kind === 'refund') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' ') || null; if (!str(b.name, 30)) throw bad('退货请填顾客姓名'); }
-  else { pkg = str(b.pkg, 40); if (PKGS.indexOf(pkg) < 0) throw bad('请选套餐'); }
+  else {
+    pkg = str(b.pkg, 40); if (PKGS.indexOf(pkg) < 0) throw bad('请选套餐');   // 退货也要选退的是哪个套餐（2026-11-12 用户）
+    if (kind === 'refund') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' ') || null; if (!str(b.name, 30)) throw bad('退货请填顾客姓名'); }
+  }
   // 套餐数量（2026-11-12 用户：默认 1，可以改）
-  const flat = kind === 'other' || kind === 'refund';   // 这两种没有套餐 / 数量 / 送朋友
+  const flat = kind === 'other';   // 其它没有套餐 / 数量；退货有套餐和数量，但没有送朋友
   const qty = flat ? null : Number(b.qty == null || b.qty === '' ? 1 : b.qty);
   if (qty !== null && !(Number.isInteger(qty) && qty >= 1 && qty <= 99)) throw bad('套餐数量要 1~99');
   // 送朋友（2026-11-12 用户）：送的人、被送的人都要填名字和电话；卡办在被送的人（phone）名下
   let giver_name = null, giver_phone = null;
-  if (b.gift && !flat) {
+  if (b.gift && !flat && kind !== 'refund') {
     giver_name = str(b.giver_name, 30).replace(/[\r\n\t]/g, ' ');
     giver_phone = str(b.giver_phone, 20).replace(/\D/g, '');
     if (!giver_name) throw bad('请填送的人姓名');
