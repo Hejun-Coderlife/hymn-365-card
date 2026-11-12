@@ -20,7 +20,7 @@ body{font-family:var(--sans);color:var(--t1);background:var(--bg);font-size:14px
 button,input,select,textarea{font:inherit;color:inherit}
 
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);border-right:1px solid var(--line-2);background:#fff;display:flex;flex-direction:column}
-.sidebar .logo{padding:34px 22px 26px;border-bottom:1px solid var(--line-2)}
+.sidebar .logo{padding:34px 22px 26px;border-bottom:1px solid var(--line-2);text-align:center}   /* logo 块在侧栏里居中（2026-11-12 用户） */
 .sidebar .logo img{height:30px;display:block}
 .sidebar .logo .lk{display:inline-block}   /* 包住 logo + 下面一行字，字两端跟 logo 左右对齐（2026-11-12 用户） */
 .mk365{margin-top:10px;font-family:-apple-system,"PingFang SC",sans-serif;font-size:11px;font-weight:600;line-height:1;display:flex;justify-content:space-between;
@@ -386,14 +386,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121320"></script>
-<script src="report.js?v=202611121320"></script>
-<script src="xsel.js?v=202611121320"></script>
-<script src="datepick.js?v=202611121320"></script>
-<script src="api.js?v=202611121320"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121320"></script>
-<script src="xls.js?v=202611121320"></script>
-<script src="gen.js?v=202611121320"></script>
+<script src="stores.js?v=202611121321"></script>
+<script src="report.js?v=202611121321"></script>
+<script src="xsel.js?v=202611121321"></script>
+<script src="datepick.js?v=202611121321"></script>
+<script src="api.js?v=202611121321"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121321"></script>
+<script src="xls.js?v=202611121321"></script>
+<script src="gen.js?v=202611121321"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
