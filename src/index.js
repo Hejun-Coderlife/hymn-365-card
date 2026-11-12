@@ -45,6 +45,23 @@ function deviceLabel(ua) {
   return (kind + ' · ' + app).slice(0, 60);
 }
 const ROLE_NAME = { op: '操作员', staff: '店员' };
+// 区域经理 → 负责的门店（2026-11-12 用户：3 个区域经理的工号能出现在她们负责的每家店里）。跟 public/stores.js 的 STORES 保持一致
+const MGR_STORES = {
+  官卜妮: ['崇寿珀莱雅', '范市赫眉', '西坞赫眉', '塘下赫眉', '古林珀莱雅', '周巷珀莱雅', '邱隘赫眉思美', '天元赫眉', '龙山赫眉', '三横赫眉',
+    '海曙龙湖天街', '邱隘赫眉倾城', '鄞州万达赫眉', '横溪赫眉', '联丰路赫眉', '恒一赫眉', '姜山1437', '横街赫眉', '嘉悦赫眉', '溪口赫眉'],
+  杜海霞: ['慈城赫眉', '美时百货', '柴桥自然堂', '红联赫眉', '江北万达赫眉', '高塘赫眉', '洪塘赫眉', '庄市珀莱雅', '华悦美妆'],
+  张维: ['泗门赫眉', '新河珀莱雅', '潘郎赫眉', '横峰赫眉', '钱清赫眉', '蓬街赫眉', '泗门珀莱雅', '丈亭赫眉', '低塘珀莱雅', '马渚赫眉',
+    '金清赫眉', '梅林赫眉', '石浦赫眉', '义桥赫眉']
+};
+const mgrOf = (store) => Object.keys(MGR_STORES).find((m) => MGR_STORES[m].indexOf(store) >= 0) || '';
+// 一家店能选的工号 = 这家店的员工 + 负责这家店的区域经理（经理按姓名在 staff 表里找工号，排最后，标「区域经理」）
+async function storeStaff(db, store) {
+  const own = (await db.prepare('SELECT no, name FROM staff WHERE store = ? ORDER BY no').bind(store).all()).results;
+  const m = mgrOf(store);
+  if (!m) return own;
+  const mg = (await db.prepare('SELECT no, name FROM staff WHERE name = ? ORDER BY no').bind(m).all()).results;
+  return own.filter((x) => !mg.some((g) => g.no === x.no)).concat(mg.map((g) => ({ no: g.no, name: g.name + '（区域经理）' })));
+}
 // 2026-11-12 起每家店一个店员账号（users.store），各自最多 5 台设备。操作记录的 role 写成 staff:店名，看得出是哪家店
 // 后台也分人（2026-11-12 用户：何俊、金晓锋、叶金虎、毛毛各一个，users.name），操作记录写 op:姓名
 const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role === 'op' && u.name ? 'op:' + u.name : u.role;
@@ -190,12 +207,11 @@ async function handle(req, env) {
     await audit(req, db, who(u), 'password', acctName(u) + ' 自己改了密码');
     return json({ ok: true });
   }
-  // 工号下拉：店员看登录时选的那家店的员工；操作员可以 ?store= 看任意店
+  // 工号下拉：店员看登录时选的那家店的员工（+ 这家店的区域经理）；操作员可以 ?store= 看任意店
   if (p === '/staff' && req.method === 'GET') {
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
     if (!st) return json({ staff: [] });
-    const r = await db.prepare('SELECT no, name FROM staff WHERE store = ? ORDER BY no').bind(st).all();
-    return json({ staff: r.results });
+    return json({ staff: await storeStaff(db, st) });
   }
 
   // 提交一个会员（店员手机上用；操作员也能用）
@@ -203,7 +219,8 @@ async function handle(req, env) {
     const b0 = await body(req);
     // 店员：门店用登录时选的；操作员（2026-11-12 起能用店员版）：门店在页面上选，跟着请求来。工号都要是这家店的
     if (!isOp) { if (!u.store) throw new HttpError(401, '请重新登录并选门店'); b0.store = u.store; }
-    if (!await db.prepare('SELECT 1 FROM staff WHERE no = ? AND store = ?').bind(str(b0.staff_no, 20), str(b0.store, 30)).first()) throw bad('工号不是这家店的，请重新选');
+    const sno = str(b0.staff_no, 20);
+    if (!(await storeStaff(db, str(b0.store, 30))).some((x) => x.no === sno)) throw bad('工号不是这家店的，请重新选');
     const s = checkSub(b0);
     // 同一手机号有没处理的就别重复提交；退货和办卡分开算（刚办的卡当天退也要能提交）
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending' AND (kind = 'refund') = ?").bind(s.phone, s.kind === 'refund' ? 1 : 0).first();
