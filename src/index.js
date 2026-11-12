@@ -355,8 +355,9 @@ async function handle(req, env) {
     needOp();
     const id = Number((await body(req)).id) || 0;
     if (id === u.did) throw bad('不能移出你正在用的这台');
-    const d = await db.prepare('SELECT d.label, u.role, u.store, u.name FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
+    const d = await db.prepare('SELECT d.label, d.uid, u.role, u.store, u.name FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
     if (!d) throw bad('这台设备已经不在了');
+    if (d.role === 'op' && d.uid !== u.id) throw new HttpError(403, '后台账号只能移出自己的设备');   // 2026-11-12 用户：后台之间不能互相踢
     await db.batch([db.prepare('DELETE FROM sessions WHERE did = ?').bind(id), db.prepare('DELETE FROM devices WHERE id = ?').bind(id)]);
     await audit(req, db, who(u), 'device_remove', acctName(d) + ' ' + d.label);
     return json({ ok: true });
