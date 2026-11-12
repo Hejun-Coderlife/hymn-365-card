@@ -9,4 +9,5 @@ async function api(path, data) {
   if (!r.ok) throw new Error(j.error || ('出错了（' + r.status + '）'));
   return j;
 }
-async function logout() { try { await api('/logout', {}); } catch (e) {} location.href = '/login.html'; }
+// 店员版退回店员登录页；后台退回后台登录页（?to=/）。店员登录页上没有后台入口（2026-11-12 用户）
+async function logout() { try { await api('/logout', {}); } catch (e) {} location.href = /^\/store/.test(location.pathname) ? '/login.html' : '/login.html?to=/'; }

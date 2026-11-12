@@ -90,7 +90,8 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   <div class="sub storeline"><b id="storeName">—</b><a id="chStore" href="javascript:">换门店</a></div>
 
   <form class="form" id="f" autocomplete="off">
-    <!-- 门店在登录页选（2026-11-12 用户）；工号下拉只列这家店的 -->
+    <!-- 门店在登录页选（2026-11-12 用户）；工号下拉只列这家店的。操作员用店员版时这里多一行选门店（店员看不到） -->
+    <div class="row" id="opStoreRow" hidden><label>门店</label><select id="opStore"><option value="">选门店</option></select><span class="tip">后台</span></div>
     <div class="row"><label>工号</label><select id="no"><option value="">选你的工号</option></select><span class="tip">会记住</span></div>
     <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开365卡</button><button type="button" data-v="renew">365续卡</button><button type="button" data-v="other">其它</button></div></div>
     <div class="row" id="pkRow" hidden><label>套餐</label><div class="pk" id="pk"></div></div>
@@ -114,12 +115,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="fx.js?v=202611121017"></script>
+<script src="fx.js?v=202611121029"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121017"></script>
-<script src="xsel.js?v=202611121017"></script>
-<script src="datepick.js?v=202611121017"></script>
-<script src="api.js?v=202611121017"></script>
+<script src="stores.js?v=202611121029"></script>
+<script src="xsel.js?v=202611121029"></script>
+<script src="datepick.js?v=202611121029"></script>
+<script src="api.js?v=202611121029"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -186,6 +187,7 @@ function msg(t, ok) { $('#msg').textContent = t; $('#msg').className = 'msg ' + 
 $('#f').onsubmit = async e => {
   e.preventDefault();
   const no = $('#no').value, phone = phoneOf();
+  if (IS_OP && !STORE) return msg('请先选门店');
   if (!no) return msg('请先选工号');
   if (!kind) return msg('请选新开卡 / 续卡 / 其它');
   if (kind !== 'other' && pkg < 0) return msg('请选套餐');
@@ -199,7 +201,7 @@ $('#f').onsubmit = async e => {
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: kind === 'other' ? '' : PKG_NAMES[pkg], qty: kind === 'other' ? null : qtyN(), note: kind === 'other' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
+    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: kind === 'other' ? '' : PKG_NAMES[pkg], qty: kind === 'other' ? null : qtyN(), note: kind === 'other' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
     $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; $('#qty').value = 1; $('#gname').value = ''; $('#gphone').value = ''; kind = ''; pkg = -1; gift = false; dateTouched = false; paintKind(); save();
     load();
@@ -212,7 +214,7 @@ async function load() {
   $('#lt').textContent = no ? `工号 ${no} 提交的 · 近 30 天` : '我提交的 · 近 30 天';
   if (!no) { $('#items').innerHTML = '<div class="empty">选了工号就能看到自己提交过的</div>'; $('#cnt').textContent = ''; return; }
   try {
-    const { subs } = await api('/subs?staff_no=' + encodeURIComponent(no));
+    const { subs } = await api('/subs?staff_no=' + encodeURIComponent(no) + (IS_OP ? '&store=' + encodeURIComponent(STORE) : ''));
     $('#cnt').textContent = subs.length || '';
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
@@ -229,15 +231,31 @@ async function load() {
 }
 $('#out').onclick = logout;
 $('#chStore').onclick = logout;   // 换门店 = 退出重新登录选
-api('/me').then(async r => {
-  if (r.role === 'op') { location.replace('/'); return; }
-  if (r.role !== 'staff' || !r.store) return logout();   // 老会话没选过门店：退出重登
-  STORE = r.store; $('#storeName').textContent = r.store;
-  const { staff } = await api('/staff');
+let IS_OP = false;
+async function loadStaff() {
+  const { staff } = await api(IS_OP ? '/staff?store=' + encodeURIComponent(STORE) : '/staff');
   $('#no').innerHTML = '<option value="">选你的工号</option>' + staff.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('');
   const keep = (sv.nos || {})[STORE];
-  if (keep && staff.some(x => x.no === keep)) $('#no').value = keep;
+  $('#no').value = keep && staff.some(x => x.no === keep) ? keep : '';
   load();
+}
+api('/me').then(async r => {
+  // 操作员也能用店员版（2026-11-12 用户）：门店在页面上选（记在本机），顶上「换门店」换成「回后台」
+  if (r.role === 'op') {
+    IS_OP = true;
+    $('#opStore').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
+    const k = localStorage.getItem('c365_op_store'); if (k && STORE_MGR[k]) $('#opStore').value = k;
+    XSel.attach($('#opStore'), { placeholder: true });
+    $('#opStoreRow').hidden = false;
+    $('#out').onclick = async () => { try { await api('/logout', {}); } catch (e) {} location.href = '/login.html?to=/'; };   // 操作员退出回后台登录页
+    $('#chStore').textContent = '回后台'; $('#chStore').onclick = () => { location.href = '/'; };
+    const pick = () => { STORE = $('#opStore').value; localStorage.setItem('c365_op_store', STORE); $('#storeName').textContent = STORE ? '操作员 · ' + STORE : '操作员 · 先选门店'; if (STORE) loadStaff(); else { $('#no').innerHTML = '<option value="">选你的工号</option>'; load(); } };
+    $('#opStore').onchange = pick; pick();
+    return;
+  }
+  if (r.role !== 'staff' || !r.store) return logout();   // 老会话没选过门店：退出重登
+  STORE = r.store; $('#storeName').textContent = r.store;
+  loadStaff();
 }).catch(() => {});
 </script>
 </body>

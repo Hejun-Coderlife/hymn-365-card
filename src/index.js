@@ -171,11 +171,9 @@ async function handle(req, env) {
   // 提交一个会员（店员手机上用；操作员也能用）
   if (p === '/sub' && req.method === 'POST') {
     const b0 = await body(req);
-    if (!isOp) {   // 店员：门店用登录时选的，工号要是这家店的
-      if (!u.store) throw new HttpError(401, '请重新登录并选门店');
-      b0.store = u.store;
-      if (!await db.prepare('SELECT 1 FROM staff WHERE no = ? AND store = ?').bind(str(b0.staff_no, 20), u.store).first()) throw bad('工号不是这家店的，请重新选');
-    }
+    // 店员：门店用登录时选的；操作员（2026-11-12 起能用店员版）：门店在页面上选，跟着请求来。工号都要是这家店的
+    if (!isOp) { if (!u.store) throw new HttpError(401, '请重新登录并选门店'); b0.store = u.store; }
+    if (!await db.prepare('SELECT 1 FROM staff WHERE no = ? AND store = ?').bind(str(b0.staff_no, 20), str(b0.store, 30)).first()) throw bad('工号不是这家店的，请重新选');
     const s = checkSub(b0);
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending'").bind(s.phone).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
@@ -186,10 +184,10 @@ async function handle(req, env) {
   }
   // 列表：店员只能看自己工号最近 30 天的；操作员看待处理的全部 + 最近 30 天处理过的
   if (p === '/subs' && req.method === 'GET') {
-    if (!isOp) {
-      const no = str(url.searchParams.get('staff_no'), 20);
+    if (!isOp || url.searchParams.has('staff_no')) {   // 店员版（操作员在店员版里也走这里，门店从参数来）
+      const no = str(url.searchParams.get('staff_no'), 20), st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
       if (!no) return json({ subs: [] });
-      const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND store = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, u.store || '', now - 30 * DAY).all();
+      const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND store = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, st || '', now - 30 * DAY).all();
       return json({ subs: r.results });
     }
     const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();

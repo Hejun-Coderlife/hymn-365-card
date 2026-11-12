@@ -24,6 +24,8 @@ input{width:100%;border:1px solid var(--chip);padding:14px;font-size:17px;outlin
 input:focus{border-color:var(--pink-deep)}
 .go{width:100%;margin-top:30px;background:var(--pink-deep);color:#fff;border:0;padding:15px;font-size:15px;letter-spacing:.1em;cursor:pointer}
 .go:disabled{background:var(--t4)}
+.sub2{text-align:center;font-size:12px;letter-spacing:.4em;color:var(--t3);margin:-22px 0 30px}
+.sub2[hidden]{display:none}
 .store{margin-bottom:22px}
 .store[hidden]{display:none}
 .store .xs-btn{width:100%;height:auto;padding:14px;font-size:17px;border-color:var(--chip)}
@@ -43,10 +45,7 @@ input:focus{border-color:var(--pink-deep)}
 <form class="box" id="f">
   <img class="logo" src="logo-ink.png" alt="赫眉 HYMN">
   <h1><span class="gsw">套餐销售登记</span></h1>
-  <div class="seg" id="role">
-    <button type="button" data-v="staff">店员</button>
-    <button type="button" data-v="op">操作员</button>
-  </div>
+  <div class="sub2" id="opTag" hidden>后台</div>
   <!-- 店员登录就选门店（2026-11-12 用户），进去后不用再选 -->
   <div class="store" id="storeBox"><label>门店</label><select id="store"><option value="">选你的门店</option></select></div>
   <label for="pw">密码</label>
@@ -55,30 +54,29 @@ input:focus{border-color:var(--pink-deep)}
   <div class="err" id="err"></div>
   <div class="hint">每个账号最多 5 台设备同时登录<br>超过时，最久没用的那台会自动退出</div>
 </form>
-<script src="fx.js?v=202611121017"></script>
+<script src="fx.js?v=202611121029"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121017"></script>
-<script src="xsel.js?v=202611121017"></script>
-<script src="api.js?v=202611121017"></script>
+<script src="stores.js?v=202611121029"></script>
+<script src="xsel.js?v=202611121029"></script>
+<script src="api.js?v=202611121029"></script>
 <script>
 const $ = s => document.querySelector(s);
-// 默认角色：手机默认店员，电脑默认操作员；记住上次选的
-let role = localStorage.getItem('c365_role') || (/Mobi|Android|iPhone/.test(navigator.userAgent) ? 'staff' : 'op');
+// 2026-11-12 用户：店员版看不到后台入口 → 登录页默认只有店员（门店 + 密码）；
+// 只有从后台地址（card.hemei.asia 根目录）被带过来的（?to= 不是店员页）才是后台登录
+const to = new URLSearchParams(location.search).get('to');
+let role = to && !/^\/store/.test(to) ? 'op' : 'staff';
+if (role === 'op') { $('#opTag').hidden = false; document.title = '登录 · 套餐销售登记 · 后台'; }
 $('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
 const sv = localStorage.getItem('c365_login_store'); if (sv && STORE_MGR[sv]) $('#store').value = sv;
 XSel.attach($('#store'), { placeholder: true });
 $('#store').onchange = () => localStorage.setItem('c365_login_store', $('#store').value);
-const paint = () => { document.querySelectorAll('#role button').forEach(b => b.classList.toggle('on', b.dataset.v === role)); $('#storeBox').hidden = role !== 'staff'; };
-document.querySelectorAll('#role button').forEach(b => b.onclick = () => { role = b.dataset.v; paint(); $('#pw').focus(); });
-paint();
+$('#storeBox').hidden = role !== 'staff';
 $('#f').onsubmit = async e => {
   e.preventDefault();
   if (role === 'staff' && !$('#store').value) { $('#err').textContent = '请先选门店'; return; }
   $('#go').disabled = true; $('#err').textContent = '';
   try {
     const r = await api('/login', { role, password: $('#pw').value, store: role === 'staff' ? $('#store').value : '' });
-    localStorage.setItem('c365_role', role);
-    const to = new URLSearchParams(location.search).get('to');
     location.href = r.role === 'staff' ? '/store.html' : (to && !/^\/store/.test(to) ? to : '/');
   } catch (err) { $('#err').textContent = err.message; $('#go').disabled = false; }
 };

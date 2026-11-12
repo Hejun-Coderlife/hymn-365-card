@@ -229,7 +229,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <a data-panel="log" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="4" y="2.5" width="14" height="17"/><line x1="7" y1="7.5" x2="15" y2="7.5"/><line x1="7" y1="11" x2="15" y2="11"/><line x1="7" y1="14.5" x2="12" y2="14.5"/></svg></span><span>操作记录</span></a>
   </nav>
   <div class="foot">每人 42 张券<br>洗脸巾 12 张 · 代金券 30 张<br>另附 3 次护理导入</div>
-  <div class="foot me" data-op hidden><b>操作员</b><br><button class="lnk" id="outBtn" type="button">退出登录</button></div>
+  <div class="foot me" data-op hidden><b>操作员</b><br><a class="lnk" href="/store" target="_blank" style="text-decoration:none">打开店员版</a>　<button class="lnk" id="outBtn" type="button">退出登录</button></div>
 </aside>
 
 <div class="main">
@@ -373,14 +373,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121017"></script>
-<script src="report.js?v=202611121017"></script>
-<script src="xsel.js?v=202611121017"></script>
-<script src="datepick.js?v=202611121017"></script>
-<script src="api.js?v=202611121017"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121017"></script>
-<script src="xls.js?v=202611121017"></script>
-<script src="gen.js?v=202611121017"></script>
+<script src="stores.js?v=202611121029"></script>
+<script src="report.js?v=202611121029"></script>
+<script src="xsel.js?v=202611121029"></script>
+<script src="datepick.js?v=202611121029"></script>
+<script src="api.js?v=202611121029"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121029"></script>
+<script src="xls.js?v=202611121029"></script>
+<script src="gen.js?v=202611121029"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
