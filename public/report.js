@@ -38,10 +38,12 @@
     hit.forEach(x => {
       const st = x.store || '未填门店';
       const o = F.by === 'store' ? add(st, { name: st, sub: STORE_MGR[st] || '' }) : add(x.staff_no + '|' + st, { name: '工号 ' + x.staff_no, sub: st });
-      o.n++; x.kind === 'renew' ? o.rn++ : x.kind === 'other' ? o.ot++ : o.nw++;
+      const w = x.kind === 'other' ? 1 : (x.qty || 1);   // 2026-11-12 起按套餐份数算（一单可以买几份）
+      o.n += w; x.kind === 'renew' ? o.rn += w : x.kind === 'other' ? o.ot += w : o.nw += w;
     });
     const list = Object.values(per).sort((a, b) => b.n - a.n || b.nw - a.nw || a.name.localeCompare(b.name, 'zh'));
-    const total = hit.length, nw = hit.filter(x => x.kind === 'new').length, ot = hit.filter(x => x.kind === 'other').length;
+    const W = x => x.kind === 'other' ? 1 : (x.qty || 1), sum = a => a.reduce((t, x) => t + W(x), 0);
+    const total = sum(hit), nw = sum(hit.filter(x => x.kind === 'new')), ot = sum(hit.filter(x => x.kind === 'other'));
     const nStore = F.store ? 1 : STORES.reduce((s, [m, l]) => s + (!F.mgr || F.mgr === m ? l.length : 0), 0);
     const scope = [F.store || (F.mgr ? `${F.mgr} · ${nStore} 家店` : `全部 ${nStore} 家店`), nos.length ? '工号 ' + nos.join('、') : ''].filter(Boolean).join(' · ');
     return { r, list, total, nw, rn: total - nw - ot, ot, scope, by: F.by };
@@ -72,8 +74,8 @@
     g.font = '12px ' + SANS; g.fillStyle = C.t3; g.fillText(D.scope, PAD, y + 24);
     // 大数字：办卡总数
     y = 196; g.fillStyle = C.deep; g.font = '64px ' + NUM; g.fillText(String(D.total), PAD - 2, y);
-    const pw = g.measureText(String(D.total)).width; g.font = '15px ' + SANS; g.fillText('单', PAD + pw + 6, y);
-    g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText('总单数', PAD, y + 22);
+    const pw = g.measureText(String(D.total)).width; g.font = '15px ' + SANS; g.fillText('份', PAD + pw + 6, y);
+    g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText('总份数', PAD, y + 22);
     const colW = (W - PAD * 2) / 4;   // 2026-11-12 加「其它」
     [[String(D.nw), '新开365卡'], [String(D.rn), '365续卡'], [String(D.ot), '其它']].forEach((s, i) => {
       const x = PAD + colW * (i + 1) + 10;
@@ -83,7 +85,7 @@
     });
     y = 250; g.fillStyle = C.ink; g.fillRect(PAD, y, W - PAD * 2, 1);
     g.font = '11px ' + SANS; g.fillStyle = C.t3; spaced(g, D.by === 'store' ? '门店排名' : '店员排名', PAD, y + 26, 2);
-    g.textAlign = 'right'; g.fillText('单数 · 新开 / 续卡 / 其它', W - PAD, y + 26); g.textAlign = 'left';
+    g.textAlign = 'right'; g.fillText('份数 · 新开 / 续卡 / 其它', W - PAD, y + 26); g.textAlign = 'left';
     y += 44;
     const max = Math.max(1, ...rows.map(o => o.n)), nameW = 150, barX = PAD + 28 + nameW, barW = 150;
     const subs = new Set(rows.map(o => o.sub)), showSub = D.by === 'staff' || subs.size > 1;
