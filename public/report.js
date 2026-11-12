@@ -87,7 +87,7 @@
     g.font = '11px ' + SANS; g.fillStyle = C.t3; spaced(g, D.by === 'store' ? '门店排名' : '店员排名', PAD, y + 26, 2);
     g.textAlign = 'right'; g.fillText('份数 · 新开 / 续卡 / 其它', W - PAD, y + 26); g.textAlign = 'left';
     y += 44;
-    const max = Math.max(1, ...rows.map(o => o.n)), nameW = 150, barX = PAD + 28 + nameW, barW = 150;
+    const max = Math.max(1, ...rows.map(o => o.n)), nameW = 150, barX = PAD + 28 + nameW, barW = 120;   // 条短一点，右边给「新 · 续 · 其」留地方
     const subs = new Set(rows.map(o => o.sub)), showSub = D.by === 'staff' || subs.size > 1;
     if (!rows.length) { g.fillStyle = C.t3; g.font = '13px ' + SANS; g.fillText('这段时间还没有登记', PAD + 28, y + ROW / 2 + 4); }
     rows.forEach((o, i) => {
@@ -100,7 +100,7 @@
       if (sub) { const nx = PAD + 28 + g.measureText(nm).width + 6; g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText(fit(g, sub, barX - nx - 8), nx, mid); }
       g.fillStyle = C.track; g.fillRect(barX, mid - 7, barW, 6);
       if (o.n) { g.fillStyle = C.gold; g.fillRect(barX, mid - 7, Math.max(2, barW * o.n / max), 6); }
-      g.textAlign = 'right'; g.font = '17px ' + NUM; g.fillStyle = o.n ? C.ink : C.t3; g.fillText(String(o.n), barX + barW + 48, mid);
+      g.textAlign = 'right'; g.font = '17px ' + NUM; g.fillStyle = o.n ? C.ink : C.t3; g.fillText(String(o.n), barX + barW + 40, mid);
       g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText(`新 ${o.nw} · 续 ${o.rn}` + (o.ot ? ` · 其 ${o.ot}` : ''), W - PAD, mid); g.textAlign = 'left';
     });
     y += listH + 30;
