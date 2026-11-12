@@ -21,9 +21,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);border-right:1px solid var(--line-2);background:#fff;display:flex;flex-direction:column}
 .sidebar .logo{padding:34px 22px 26px;border-bottom:1px solid var(--line-2)}
-.sidebar .logo img{height:30px;display:block}
-.sidebar .logo .lk{display:inline-block}   /* 包住 logo + 下面一行字，字两端跟 logo 左右对齐（2026-11-12 用户） */
-.mk365{margin-top:10px;font-family:-apple-system,"PingFang SC",sans-serif;font-size:11px;font-weight:600;line-height:1;display:flex;justify-content:space-between;
+.sidebar .logo img{height:22px;display:block}   /* logo 大小、副标题排法照会员助手 vip.hemei.asia（2026-11-12 用户） */
+.mk365{margin-top:13px;font-family:-apple-system,"PingFang SC",sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.3em;line-height:1;display:inline-block;
   /* 2026-11-11 第二版：铜色衬线字跟黑色 logo 不搭（用户：太不和谐），改成跟原来 STUDIO 同一个排法，黑字上一道淡金光每 5 秒扫过一次 */
   background:linear-gradient(100deg,#16140F 0%,#16140F 40%,#C9A15A 48%,#F0D9A8 50%,#C9A15A 52%,#16140F 60%,#16140F 100%);
   background-size:300% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;
@@ -222,8 +221,8 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <aside class="sidebar">
   <div class="logo">
-    <div class="lk"><img src="logo-ink.png" alt="赫眉 HYMN">
-    <div class="mk365"><span>套</span><span>餐</span><span>销</span><span>售</span><span>登</span><span>记</span></div></div>
+    <img src="logo-ink.png" alt="赫眉 HYMN">
+    <div class="mk365">套餐销售登记</div>
   </div>
   <nav class="nav">
     <div class="grp">会员</div>
@@ -386,14 +385,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121320"></script>
-<script src="report.js?v=202611121320"></script>
-<script src="xsel.js?v=202611121320"></script>
-<script src="datepick.js?v=202611121320"></script>
-<script src="api.js?v=202611121320"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121320"></script>
-<script src="xls.js?v=202611121320"></script>
-<script src="gen.js?v=202611121320"></script>
+<script src="stores.js?v=202611121325"></script>
+<script src="report.js?v=202611121325"></script>
+<script src="xsel.js?v=202611121325"></script>
+<script src="datepick.js?v=202611121325"></script>
+<script src="api.js?v=202611121325"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121325"></script>
+<script src="xls.js?v=202611121325"></script>
+<script src="gen.js?v=202611121325"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
