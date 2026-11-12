@@ -44,8 +44,10 @@
   // 每个人可以有自己的起算日 p.date（名单里那行写了日期），没写就用整批的 opt.date（2026-11-11 用户要求）
   function buildRows(people, opt) {
     const rows = [];
-    for (const p of people) {
-      const start = p.date || opt.date, end = addMonths(start, 12);
+    for (const p of people) for (let q = 0; q < (p.qty || 1); q++) {
+      // 买了几份（2026-11-12 用户：数量超过 1 就接着往下填，日期也续下去）：第 q 份从起算日往后推 q 年。
+      // 券号用这一份自己的起算年份，所以同一人连续几年的券号不会重
+      const start = addMonths(p.date || opt.date, 12 * q), end = addMonths(start, 12);
       const wash = washPeriods(start, opt.mode);
       let k = 1;
       const no = () => voucherNo(start, p.phone, k++);
@@ -71,24 +73,25 @@
       .concat(rows.map(r => [r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), d(r.s), d(r.e),
         r.rule, r.scene, null, null, r.min, r.rule]));
     const s2 = [['会员编号', '卡项编号', '项目编号', '购买金额', '数量']]
-      .concat(people.map(p => [String(p.phone), '1071', '1071', 0, 3]));
+      .concat([].concat(...people.map(p => Array.from({ length: p.qty || 1 }, () => [String(p.phone), '1071', '1071', 0, 3]))));   // 每份一行
     return XLS.write(XLSX.CFB, [
       { name: '代金券', widths: [18, 22, 9, 12, 15, 14, 12, 12, 10, 12, 15, 15, 10, 10], rows: s1 },
       { name: '3次护理导入', widths: [14, 10, 10, 10, 8], rows: s2 },
     ]);
   }
 
-  // 每个顾客单独一个文件（2026-11-11 用户要求「每个人单独一个表，不要做到一起」）
+  // 2026-11-12 用户改主意：所有人合成一个表（不要压缩、不要建文件夹）。只有一个人时文件名带姓名手机号
   const dstr = date => `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   const safe = t => String(t).replace(/[\\/:*?"<>|]/g, '');
   function fileName(p, date, renew) {
     return `365金卡${renew ? '续卡' : ''}_${p.name ? safe(p.name) + '_' : ''}${p.phone}_${dstr(date)}.xls`;
   }
-  function zipName(people, date, renew) {
-    return `365金卡${renew ? '续卡' : ''}_${people.length}人_${dstr(date)}.zip`;
+  function allName(people, date) {
+    if (people.length === 1) return fileName(people[0], people[0].date || date, people[0].renew);
+    return `365金卡_${people.length}人_${dstr(date)}.xls`;
   }
 
-  const api = { voucherNo, buildRows, buildXls, fileName, zipName, ymd, addMonths, WASH, CASH };
+  const api = { voucherNo, buildRows, buildXls, fileName, allName, ymd, addMonths, WASH, CASH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Gen = api;
 })(this);

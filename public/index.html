@@ -205,10 +205,6 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 .empty{padding:50px;text-align:center;color:var(--t4)}
 
 .bar{position:sticky;bottom:0;margin-top:34px;padding:18px 0;background:rgba(255,255,255,.96);border-top:1px solid var(--line-2);display:flex;align-items:center;gap:18px}
-.how{display:flex;border:1px solid var(--line-2)}
-.how button{border:0;background:#fff;padding:12px 16px;cursor:pointer;font-size:13px;color:var(--t2)}
-.how button+button{border-left:1px solid var(--line-2)}
-.how button.on{background:var(--pink-bg);color:var(--t1);box-shadow:inset 0 -2px 0 var(--ink)}
 .lnk{border:0;background:none;color:var(--t3);font-size:12px;cursor:pointer;border-bottom:1px solid var(--line-2);padding:0 0 1px}
 .lnk:hover{color:var(--t1);border-color:var(--t1)}
 .bar .fn{font-size:13px;color:var(--t2)}
@@ -318,14 +314,9 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </section>
 
   <div class="bar">
-    <div class="how" id="how">
-      <button type="button" data-v="folder">生成文件夹</button>
-      <button type="button" data-v="zip">压缩成 zip</button>
-      <button type="button" data-v="loose">直接导出</button>
-    </div>
+    <!-- 2026-11-12 用户：只生成一个表格，压缩、生成文件夹都不要 -->
     <button class="btn pri" id="go" type="button">导出 Excel</button>
     <span class="fn" id="fn"></span>
-    <button class="lnk" id="chg" type="button" hidden>换位置</button>
   </div>
 </div>
 
@@ -382,15 +373,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121001"></script>
-<script src="report.js?v=202611121001"></script>
-<script src="xsel.js?v=202611121001"></script>
-<script src="datepick.js?v=202611121001"></script>
-<script src="api.js?v=202611121001"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121001"></script>
-<script src="vendor/jszip.min.js?v=202611121001"></script>
-<script src="xls.js?v=202611121001"></script>
-<script src="gen.js?v=202611121001"></script>
+<script src="stores.js?v=202611121009"></script>
+<script src="report.js?v=202611121009"></script>
+<script src="xsel.js?v=202611121009"></script>
+<script src="datepick.js?v=202611121009"></script>
+<script src="api.js?v=202611121009"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121009"></script>
+<script src="xls.js?v=202611121009"></script>
+<script src="gen.js?v=202611121009"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -402,15 +392,13 @@ $('#date').value = iso(today);
 // 刷新不丢（2026-11-11 用户要求，以后所有网站默认都要有）：
 // 名单原样存在本机 localStorage；开卡日期只在当天恢复，隔天打开自动回到今天，免得用旧日期导出
 const KEY = 'hymn-365-card';
-let how = 'zip';
 let renew = false;  // 续卡：券和洗脸巾从「续卡从哪天算」开始，不从开卡当天（2026-11-11 用户要求）   // 导出方式：folder 生成文件夹 / zip 压缩 / loose 散放在「下载」
 try {
   const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (sv.txt) $('#txt').value = sv.txt;
-  if (sv.how) how = sv.how;
 } catch (e) {}
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ txt: $('#txt').value, date: $('#date').value, rdate: $('#rdate').value, day: iso(today), how, renew })); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ txt: $('#txt').value, date: $('#date').value, rdate: $('#rdate').value, day: iso(today), renew })); } catch (e) {}
 }
 
 let people = [];      // 识别出的有效名单（已去重）
@@ -439,6 +427,10 @@ function parse(text) {
     }
     // 这一行写了「续卡」= 这个人按续卡（文件名带续卡）；「新开卡」只是说明，去掉
     // 只认单独的一个词（前后是空白/分隔符），名字里带「续卡」两个字的不算
+    // 数量：×3 / x3 / *3 / 3份（2026-11-12 用户：套餐数量超过 1 就接着填，日期续下去）
+    let pqty = 1;
+    const qm = raw.match(/(?:[×xX*＊]\s*(\d{1,2})(?!\d))|(?:(?<!\d)(\d{1,2})\s*份)/);
+    if (qm) { pqty = Math.max(1, +(qm[1] || qm[2])); raw = raw.replace(qm[0], ' '); }
     const KW = /(^|[\s,，;；、|])(新开卡|续卡)(?=$|[\s,，;；、|])/g;
     const prenew = [...raw.matchAll(KW)].some(m => m[2] === '续卡');
     raw = raw.replace(KW, '$1 ');
@@ -450,10 +442,11 @@ function parse(text) {
     }
     const phone = m[0].replace(/\D/g, '');
     const name = raw.replace(m[0], ' ').replace(/[\s,，;；、:：|]+/g, ' ').trim();
-    if (seen[phone]) return issues.push({ n: i + 1, raw: orig, why: `和第 ${seen[phone]} 行重复，已跳过` });
-    seen[phone] = i + 1;
+    // 同一个手机号又出现：同一个顾客续了好几份，并到第一次那行，份数加上去，日期接着第一次往后续（2026-11-12 用户）
+    if (seen[phone]) { const p0 = ok[seen[phone].k]; p0.qty += pqty; p0.lines.push(i + 1); return; }
+    seen[phone] = { n: i + 1, k: ok.length };
     if (prenew && !pdate) pdate = readDate($('#rdate'), nextMonth1);   // 写了续卡没写日期 → 按「续卡从哪天算」
-    ok.push(Object.assign({ name, phone }, pdate ? { date: pdate } : {}, prenew ? { renew: true } : {}));
+    ok.push(Object.assign({ name, phone, qty: pqty, lines: [i + 1] }, pdate ? { date: pdate } : {}, prenew ? { renew: true } : {}));
   });
   return { ok, issues };
 }
@@ -472,14 +465,14 @@ function update() {
   const date = curDate();
   const opt = { date, mode };
     const per = Gen.WASH + Gen.CASH;
-  const total = people.length * per;
+  const nPkg = people.reduce((t, p) => t + (p.qty || 1), 0), total = nPkg * per;
   const oneYear = Gen.addMonths(date, 12);
 
   $('#pCount').textContent = people.length;
   $('#okLine').innerHTML = people.length ? `识别 <b>${people.length}</b> 人` + (issues.length ? `，<b style="color:var(--pink-deep)">${issues.length}</b> 行有问题` : '') : (issues.length ? `<b style="color:var(--pink-deep)">${issues.length}</b> 行有问题` : '还没有名单');
   $('#issues').innerHTML = issues.slice(0, 50).map(x => `<div><i>第${x.n}行</i>${esc(x.raw.slice(0, 30))} · ${x.why}</div>`).join('');
   $('#plist').innerHTML = people.length ? '<table><tbody>' + people.map((p, i) => {
-    return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:${p.date ? 'var(--pink-deep)' : 'var(--t3)'}" title="${p.date ? '这一行自己写的日期' : '用统一日期'}">${Gen.ymd(p.date || date)} 起${p.renew ? ' · 续卡' : ''}</td></tr>`;
+    return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:${p.date ? 'var(--pink-deep)' : 'var(--t3)'}" title="${p.date ? '这一行自己写的日期' : '用统一日期'}">${Gen.ymd(p.date || date)} 起${p.renew ? ' · 续卡' : ''}${p.qty > 1 ? ` · <b style="color:var(--pink-deep)">${p.qty} 份</b>，到 ${Gen.ymd(Gen.addMonths(p.date || date, 12 * p.qty))}` + (p.lines.length > 1 ? `（第 ${p.lines.join('、')} 行同一人，接着续）` : '') : ''}</td></tr>`;
   }).join('') + '</tbody></table>' : '<div class="empty">← 在左边粘贴名单<br>这里会列出认出来的每个人，方便核对</div>';
 
   $('#dateSub').textContent = `今天开卡：代金券 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}；行里写了「续卡」没写日期的，按下月 1 号`;
@@ -510,9 +503,8 @@ function update() {
   $('#go').disabled = !people.length;
   $('#fn').textContent = !people.length ? '还没有可用的手机号' :
     (issues.length ? `有 ${issues.length} 行没识别，导出时不含 · ` : '') +
-    howText(date);
-  document.querySelectorAll('#how button').forEach(b => b.classList.toggle('on', b.dataset.v === how));
-  $('#chg').hidden = !(how === 'folder' && rootName);  return { opt };
+    `${Gen.allName(people, date)}，${people.length} 人` + (nPkg > people.length ? ` ${nPkg} 份` : '') + `，代金券 ${total} 行`;
+  return { opt };
 }
 
 // 读 Excel：每行把所有格子拼成一行文本，交给同一个识别逻辑
@@ -566,43 +558,6 @@ function download(blob, name) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-const fname = (p, date) => Gen.fileName(p, date, renew || p.renew);
-const zname = (ps, date) => Gen.zipName(ps, date, renew);
-const folderName = date => zname(people, date).replace(/\.zip$/, '');
-function howText(date) {
-  const n = people.length;
-  if (how === 'zip') return `${zname(people, date)}，里面每人一个表，共 ${n} 个`;
-  if (how === 'folder') {
-    if (!window.showDirectoryPicker) return '⚠ 这个浏览器不支持建文件夹，请用 Chrome / Edge，或改选「压缩成 zip」';
-    return rootName ? `存到「${rootName} / ${folderName(date)}」，共 ${n} 个表`
-      : '第一次要选存放位置：在弹窗里点「新建文件夹」建一个（如「365金卡导出」）再选它，以后就自动存进去';
-  }
-  return `${n} 个表直接存进「下载」文件夹` + (n > 1 ? '（Chrome 第一次会问「允许下载多个文件」，点允许）' : '');
-}
-document.querySelectorAll('#how button').forEach(b => b.onclick = () => { how = b.dataset.v; update(); });
-// 「生成文件夹」的存放位置：选一次就记住（目录句柄存 IndexedDB），以后每次自动在里面建「365金卡_N人_日期」。
-// Chrome 不让网页直接写「下载/桌面/文稿」本身，只能写它们下面的子文件夹，所以第一次要新建一个。
-const idb = (mode, fn) => new Promise((res, rej) => {
-  const o = indexedDB.open('hymn-365-card', 1);
-  o.onupgradeneeded = () => o.result.createObjectStore('kv');
-  o.onsuccess = () => { const t = o.result.transaction('kv', mode); const r = fn(t.objectStore('kv')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); };
-  o.onerror = () => rej(o.error);
-});
-let rootName = '';
-idb('readonly', st => st.get('root')).then(h => { if (h) { rootName = h.name; update(); } }).catch(() => {});
-async function getRoot(change) {
-  let h = change ? null : await idb('readonly', st => st.get('root')).catch(() => null);
-  if (h) {
-    const q = { mode: 'readwrite' };
-    if ((await h.queryPermission(q)) === 'granted' || (await h.requestPermission(q)) === 'granted') return h;
-  }
-  try { h = await window.showDirectoryPicker({ id: 'hymn365', mode: 'readwrite', startIn: 'downloads' }); }
-  catch (e) { if (e.name === 'AbortError') return null; throw e; }
-  await idb('readwrite', st => st.put(h, 'root')).catch(() => {});
-  rootName = h.name; update();
-  return h;
-}
-$('#chg').onclick = async () => { try { if (await getRoot(true)) toast(`以后存到「${rootName}」`); } catch (e) { toast('换位置出错：' + e.message); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const XLS_MIME = 'application/vnd.ms-excel';
 $('#go').onclick = async () => {
@@ -610,35 +565,9 @@ $('#go').onclick = async () => {
   if (!people.length) return;
   const btn = $('#go'); btn.disabled = true;
   try {
-    const one = async p => Gen.buildXls(XLSX, XLS, [p], opt);
-    const prog = i => { btn.textContent = `生成中 ${i + 1}/${people.length}`; };
-    if (how === 'folder') {
-      if (!window.showDirectoryPicker) throw new Error('这个浏览器不支持建文件夹，请用 Chrome / Edge，或改选「压缩成 zip」');
-      const root = await getRoot(false);
-      if (!root) return;
-      const dir = await root.getDirectoryHandle(folderName(opt.date), { create: true });
-      for (let i = 0; i < people.length; i++) {
-        prog(i);
-        const fh = await dir.getFileHandle(fname(people[i], people[i].date || opt.date), { create: true });
-        const w = await fh.createWritable(); await w.write(await one(people[i])); await w.close();
-      }
-      toast(`已存到「${root.name} / ${folderName(opt.date)}」，共 ${people.length} 个表`);
-      markExported();
-    } else if (how === 'zip') {
-      const zip = new JSZip();
-      for (let i = 0; i < people.length; i++) { prog(i); zip.file(fname(people[i], people[i].date || opt.date), await one(people[i])); }
-      download(await zip.generateAsync({ type: 'blob' }), zname(people, opt.date));
-      toast(`已导出 zip，共 ${people.length} 个表，在「下载」文件夹`);
-      markExported();
-    } else {
-      for (let i = 0; i < people.length; i++) {
-        prog(i);
-        download(new Blob([await one(people[i])], { type: XLS_MIME }), fname(people[i], people[i].date || opt.date));
-        await sleep(300);   // 连着点太快浏览器会吞掉一部分下载
-      }
-      toast(`已导出 ${people.length} 个表，在「下载」文件夹`);
-      markExported();
-    }
+    download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date));
+    toast(`已导出 ${Gen.allName(people, opt.date)}，在「下载」文件夹`);
+    markExported();
   } catch (e) { toast('导出出错：' + e.message); }
   finally { btn.textContent = '导出 Excel'; btn.disabled = false; }
 };
@@ -764,7 +693,7 @@ $('#eBox').onsubmit = async e => {
     // 已经载入名单的，名单里那一行跟着换
     if (!r.same && loaded[eCur.phone]) {
       const ph = $('#ePhone').value.replace(/\D/g, '');
-      $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : ''].filter(Boolean).join(' ') : l).join('\n');
+      $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : '', +$('#eQty').value > 1 ? '×' + (+$('#eQty').value) : ''].filter(Boolean).join(' ') : l).join('\n');
       delete loaded[eCur.phone]; if (eKind !== 'other') loaded[ph] = eCur.id; saveLoaded(); update();
     }
     loadSubs();
@@ -780,7 +709,7 @@ function addToList(add) {
   const have = new Set(people.map(p => p.phone));
   add = add.filter(x => !have.has(x.phone));
   if (!add.length) return 0;
-  const lines = add.map(x => [x.name, x.phone, sdYmd(x.sdate), x.kind === 'renew' ? '续卡' : ''].filter(Boolean).join(' '));
+  const lines = add.map(x => [x.name, x.phone, sdYmd(x.sdate), x.kind === 'renew' ? '续卡' : '', x.qty > 1 ? '×' + x.qty : ''].filter(Boolean).join(' '));
   const t = $('#txt').value.replace(/\s+$/, '');
   $('#txt').value = (t ? t + '\n' : '') + lines.join('\n');
   add.forEach(x => { loaded[x.phone] = x.id; });
@@ -813,12 +742,12 @@ $('#subRef').onclick = loadSubs;
 // 导出成功后调用：名单里来自店员提交的，标「已导出」
 // 页面上做的事记进操作记录（离线双击打开时没有服务器，跳过）
 function logAct(act, info) { if (location.protocol !== 'file:') api('/log', { act, info }).catch(() => {}); }
-function logExport(mode) {
-  const M = { folder: '生成文件夹', zip: '压缩 zip', loose: '直接导出' };
-  logAct('export', `导出 ${people.length} 人（${M[mode]}）：` + people.map(p => `${p.name || ''} ${p.phone} ${Gen.ymd(p.date || curDate())}${(renew || p.renew) ? ' 续卡' : ''}`).join('、'));
+function logExport() {
+  logAct('export', `导出 ${Gen.allName(people, curDate())}（${people.length} 人）：` + people.map(p => `${p.name || ''} ${p.phone} ${Gen.ymd(p.date || curDate())}${(renew || p.renew) ? ' 续卡' : ''}${p.qty > 1 ? ' ×' + p.qty : ''}`).join('、'));
 }
+
 async function markExported() {
-  logExport(how);
+  logExport();
   const ids = people.map(p => loaded[p.phone]).filter(Boolean);
   if (!ids.length) return;
   try {
