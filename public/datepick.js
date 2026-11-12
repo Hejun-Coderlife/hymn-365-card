@@ -23,6 +23,13 @@
 .dp-g button.o{color:#C9C3B8}
 .dp-g button.t{color:#B9808B;box-shadow:inset 0 -2px 0 #D9A6AE}
 .dp-g button.s{background:var(--dp-sel,#16140F);color:#fff;box-shadow:none}
+.dp-hd b.sw{cursor:pointer;padding:4px 8px;border-bottom:1px solid #E3DFD6}
+.dp-hd b.sw:after{content:" ▾";font-size:10px;color:#9C958A}
+.dp-mg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 0}
+.dp-mg button{border:1px solid #F0EDE6;background:#fff;height:46px;font-size:15px;color:#16140F;cursor:pointer}
+.dp-mg button:hover{background:#FAFAF8}
+.dp-mg button.t{color:#B9808B}
+.dp-mg button.s{background:var(--dp-sel,#16140F);border-color:var(--dp-sel,#16140F);color:#fff}
 .dp-ft{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #F0EDE6}
 .dp-ft button{flex:1;border:1px solid #E3DFD6;background:#fff;padding:7px 0;font-size:13px;color:#4A453C;cursor:pointer}
 .dp-mask{position:fixed;inset:0;z-index:99}
@@ -44,13 +51,21 @@
 
   function open(inp, btn) {
     const sel = parse(inp.value), today = new Date();
-    let y = (sel || today).getFullYear(), m = (sel || today).getMonth();
+    let y = (sel || today).getFullYear(), m = (sel || today).getMonth(), mv = false;   // mv = 选年月视图（2026-11-12 用户：跨年一个月一个月翻不好用）
     const mask = document.createElement('div'); mask.className = 'dp-mask';
     const pop = document.createElement('div'); pop.className = 'dp-pop';
     const close = () => { mask.remove(); pop.remove(); };
     mask.onclick = close;
     const pick = d => { inp.value = iso(d); inp.dispatchEvent(new Event('input', { bubbles: true })); close(); };
     function draw() {
+      if (mv) {   // 年月视图：‹ › 换年，点月份回到日历
+        pop.innerHTML = `<div class="dp-hd"><button type="button" data-y="-1">‹</button><b class="sw">${y}年</b><button type="button" data-y="1">›</button></div>
+          <div class="dp-mg">${Array.from({ length: 12 }, (_, i) => `<button type="button" data-m="${i}" class="${y === today.getFullYear() && i === today.getMonth() ? 't' : ''} ${sel && y === sel.getFullYear() && i === sel.getMonth() ? 's' : ''}">${i + 1}月</button>`).join('')}</div>`;
+        pop.querySelectorAll('[data-y]').forEach(b => b.onclick = () => { y += +b.dataset.y; draw(); });
+        pop.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { m = +b.dataset.m; mv = false; draw(); });
+        pop.querySelector('.sw').onclick = () => { mv = false; draw(); };
+        return;
+      }
       const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
       let g = WK.map(w => `<span>${w}</span>`).join('');
       for (let i = 0; i < 42; i++) {
@@ -58,10 +73,11 @@
         const c = [d.getMonth() !== m ? 'o' : '', iso(d) === iso(today) ? 't' : '', sel && iso(d) === iso(sel) ? 's' : ''].join(' ');
         g += `<button type="button" class="${c}" data-d="${iso(d)}">${d.getDate()}</button>`;
       }
-      pop.innerHTML = `<div class="dp-hd"><button type="button" data-n="-1">‹</button><b>${y}年${m + 1}月</b><button type="button" data-n="1">›</button></div>
+      pop.innerHTML = `<div class="dp-hd"><button type="button" data-n="-1">‹</button><b class="sw">${y}年${m + 1}月</b><button type="button" data-n="1">›</button></div>
         <div class="dp-g">${g}</div>
         <div class="dp-ft"><button type="button" data-q="today">今天</button><button type="button" data-q="next1">下月1号</button></div>`;
       pop.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { m += +b.dataset.n; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } draw(); });
+      pop.querySelector('.sw').onclick = () => { mv = true; draw(); };
       pop.querySelectorAll('[data-d]').forEach(b => b.onclick = () => pick(parse(b.dataset.d)));
       pop.querySelector('[data-q=today]').onclick = () => pick(today);
       pop.querySelector('[data-q=next1]').onclick = () => pick(new Date(today.getFullYear(), today.getMonth() + 1, 1));
