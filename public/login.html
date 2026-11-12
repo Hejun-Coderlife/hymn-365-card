@@ -27,6 +27,11 @@ input:focus{border-color:var(--pink-deep)}
 .sub2{text-align:center;font-size:12px;letter-spacing:.4em;color:var(--t3);margin:-22px 0 30px}
 .sub2[hidden]{display:none}
 .store{margin-bottom:22px}
+.names{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--chip);background:#fff}
+.names button{border:0;background:#fff;padding:13px 6px;font-size:15px;color:var(--t2);cursor:pointer}
+.names button:nth-child(even){border-left:1px solid var(--line-2)}
+.names button:nth-child(n+3){border-top:1px solid var(--line-2)}
+.names button.on{background:var(--pink-deep);color:#fff}
 .store[hidden]{display:none}
 .store .xs-btn{width:100%;height:auto;padding:14px;font-size:17px;border-color:var(--chip)}
 .store .xs-btn.open,.store .xs-btn:hover{border-color:var(--pink-deep)}
@@ -48,25 +53,36 @@ input:focus{border-color:var(--pink-deep)}
   <div class="sub2" id="opTag" hidden>后台</div>
   <!-- 店员登录就选门店（2026-11-12 用户），进去后不用再选 -->
   <div class="store" id="storeBox"><label>门店</label><select id="store"><option value="">选你的门店</option></select></div>
-  <div class="store" id="nameBox" hidden><label for="nm">姓名</label><input id="nm" autocomplete="username" maxlength="20"></div>
+  <!-- 后台直接点名字（2026-11-12 用户），名单从 /api/opnames 来 -->
+  <div class="store" id="nameBox" hidden><label>我是</label><div class="names" id="names"></div><input id="nm" type="hidden"></div>
   <label for="pw">密码</label>
   <input type="password" id="pw" autocomplete="current-password" required>
   <button class="go" id="go" type="submit">登录</button>
   <div class="err" id="err"></div>
   <div class="hint">每个账号最多 5 台设备同时登录<br>超过时，最久没用的那台会自动退出</div>
 </form>
-<script src="fx.js?v=202611121124"></script>
+<script src="fx.js?v=202611121133"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121124"></script>
-<script src="xsel.js?v=202611121124"></script>
-<script src="api.js?v=202611121124"></script>
+<script src="stores.js?v=202611121133"></script>
+<script src="xsel.js?v=202611121133"></script>
+<script src="api.js?v=202611121133"></script>
 <script>
 const $ = s => document.querySelector(s);
 // 2026-11-12 用户：店员版看不到后台入口 → 登录页默认只有店员（门店 + 密码）；
 // 只有从后台地址（card.hemei.asia 根目录）被带过来的（?to= 不是店员页）才是后台登录
 const to = new URLSearchParams(location.search).get('to');
 let role = to && !/^\/store/.test(to) ? 'op' : 'staff';
-if (role === 'op') { $('#opTag').hidden = false; $('#nameBox').hidden = false; $('#nm').value = localStorage.getItem('c365_op_name') || ''; document.title = '登录 · 套餐销售登记 · 后台'; }
+if (role === 'op') {
+  $('#opTag').hidden = false; $('#nameBox').hidden = false; document.title = '登录 · 套餐销售登记 · 后台';
+  const paintNames = () => document.querySelectorAll('#names button').forEach(b => b.classList.toggle('on', b.dataset.n === $('#nm').value));
+  fetch('/api/opnames').then(r => r.json()).then(({ names }) => {
+    const last = localStorage.getItem('c365_op_name');
+    if (names.indexOf(last) >= 0) $('#nm').value = last;
+    $('#names').innerHTML = names.map(n => `<button type="button" data-n="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</button>`).join('');
+    document.querySelectorAll('#names button').forEach(b => b.onclick = () => { $('#nm').value = b.dataset.n; paintNames(); $('#pw').focus(); });
+    paintNames(); if ($('#nm').value) $('#pw').focus();
+  }).catch(() => {});
+}
 $('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
 const sv = localStorage.getItem('c365_login_store'); if (sv && STORE_MGR[sv]) $('#store').value = sv;
 XSel.attach($('#store'), { placeholder: true });
@@ -75,7 +91,7 @@ $('#storeBox').hidden = role !== 'staff';
 $('#f').onsubmit = async e => {
   e.preventDefault();
   if (role === 'staff' && !$('#store').value) { $('#err').textContent = '请先选门店'; return; }
-  if (role === 'op' && !$('#nm').value.trim()) { $('#err').textContent = '请填姓名'; return; }
+  if (role === 'op' && !$('#nm').value.trim()) { $('#err').textContent = '先点你的名字'; return; }
   $('#go').disabled = true; $('#err').textContent = '';
   try {
     const r = await api('/login', { role, password: $('#pw').value, store: role === 'staff' ? $('#store').value : '', name: role === 'op' ? $('#nm').value.trim() : '' });

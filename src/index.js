@@ -154,6 +154,11 @@ async function handle(req, env) {
     if (dv.setCookie) cookies.push(dv.setCookie);
     return json({ ok: true, role: u.role }, 200, { 'Set-Cookie': cookies });
   }
+  // 后台登录页直接选名字（2026-11-12 用户）：只给姓名，不用登录
+  if (p === '/opnames' && req.method === 'GET') {
+    const r = await db.prepare("SELECT name FROM users WHERE role = 'op' AND name IS NOT NULL ORDER BY id").all();
+    return json({ names: r.results.map((x) => x.name) });
+  }
   if (p === '/logout' && req.method === 'POST') {
     const t = cookie(req, 'c365_s');
     if (t) {
