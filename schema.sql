@@ -1,16 +1,19 @@
 -- 365金卡导入表 · 表结构（全部 IF NOT EXISTS，重复执行不动已有数据）
 -- 本地：npm run db:local
 
--- 账号只有两个共用的（2026-11-11 用户选的）：op = 操作员（你也用这个），staff = 店员（提交时填工号区分是谁）
+-- 账号：op = 操作员（后台，你也用这个）；staff = 店员，2026-11-12 起每家店一个（store = 店名），各自最多 5 台设备。
+-- 新建库：先跑本文件，再 node tools/seed.js 出 op 和店员模板账号，再 node tools/store-accounts.js 出 43 家店的账号
 CREATE TABLE IF NOT EXISTS users (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  role       TEXT UNIQUE NOT NULL,          -- op / staff
+  role       TEXT NOT NULL,                 -- op / staff
+  store      TEXT,                          -- 店员账号是哪家店；op 为空
   salt       TEXT NOT NULL,
   hash       TEXT NOT NULL,
   dev_limit  INTEGER NOT NULL DEFAULT 5,    -- 每个账号最多 5 台设备，第 6 台登录自动挤掉最久没用的
   fails      INTEGER NOT NULL DEFAULT 0,
   lock_until INTEGER NOT NULL DEFAULT 0
 );
+CREATE UNIQUE INDEX IF NOT EXISTS users_role_store ON users(role, COALESCE(store, ''));
 
 CREATE TABLE IF NOT EXISTS sessions (
   th      TEXT PRIMARY KEY,   -- token 的 SHA-256

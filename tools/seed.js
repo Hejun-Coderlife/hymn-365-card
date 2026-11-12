@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const mk = (role, pw) => {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(pw, salt, 30000, 32, 'sha256').toString('hex');
-  return `INSERT OR REPLACE INTO users (id, role, salt, hash, dev_limit) VALUES (${role === 'op' ? 1 : 2}, '${role}', '${salt}', '${hash}', 5);`;
+  // staff 这条是「店员模板账号」（store 为空），tools/store-accounts.js migrate 从它复制密码建 43 店账号后删掉
+  return `INSERT OR REPLACE INTO users (id, role, store, salt, hash, dev_limit) VALUES (${role === 'op' ? 1 : 2}, '${role}', NULL, '${salt}', '${hash}', 5);`;
 };
 console.log(mk('op', process.argv[2]) + ' ' + mk('staff', process.argv[3]));

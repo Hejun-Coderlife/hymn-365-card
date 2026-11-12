@@ -130,6 +130,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sublist tr.locked td{color:var(--t4)}
 .sublist .busy{color:var(--pink-deep);font-size:12px}
 .sublist .take{font-size:12px}
+.uq{margin-left:auto;border:1px solid var(--line-2);padding:6px 10px;font:inherit;font-size:12.5px;letter-spacing:0;width:180px;outline:none}
+.uq:focus{border-color:var(--ink)}
+.utable tr.grp td{background:var(--paper);font-size:11.5px;letter-spacing:.16em;color:var(--t3);padding:8px 14px}
+.utable .lk{color:var(--pink-deep);font-size:11.5px;margin-left:6px}
 .sublist .kd{white-space:nowrap}
 .sublist .kd small{display:block;color:var(--t3);font-size:11.5px;white-space:normal;max-width:220px}
 .sublist .ed{color:var(--pink-deep);font-size:11.5px;cursor:pointer;border-bottom:1px dotted var(--pink-deep);margin-left:4px}
@@ -361,11 +365,11 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 管理</div>
       <h2>账号与设备</h2>
-      <p>两个共用账号，每个最多 5 台设备同时登录；第 6 台登录时，最久没用的那台自动退出</p>
+      <p>后台一个账号，每家店一个店员账号；每个账号最多 5 台设备同时登录，第 6 台登录时最久没用的那台自动退出</p>
     </div>
   </header>
   <section class="sec">
-    <h3>账号 <span class="n">2</span></h3>
+    <h3>账号 <span class="n" id="uN"></span> <input class="uq" id="uQ" placeholder="搜门店 / 区域经理" autocomplete="off"></h3>
     <div class="utable" id="uTable"></div>
   </section>
 </div>
@@ -373,14 +377,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121030"></script>
-<script src="report.js?v=202611121030"></script>
-<script src="xsel.js?v=202611121030"></script>
-<script src="datepick.js?v=202611121030"></script>
-<script src="api.js?v=202611121030"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121030"></script>
-<script src="xls.js?v=202611121030"></script>
-<script src="gen.js?v=202611121030"></script>
+<script src="stores.js?v=202611121103"></script>
+<script src="report.js?v=202611121103"></script>
+<script src="xsel.js?v=202611121103"></script>
+<script src="datepick.js?v=202611121103"></script>
+<script src="api.js?v=202611121103"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121103"></script>
+<script src="xls.js?v=202611121103"></script>
+<script src="gen.js?v=202611121103"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -759,28 +763,48 @@ async function markExported() {
 
 /* ---------- 账号与设备 ---------- */
 const RN = { op: '操作员', staff: '店员' };
-let openDev = {}, pwOpen = '';
+// 操作记录里的账号：staff:店名 → 店员 · 店名（2026-11-12 起每家店一个账号）
+const roleName = r => r && r.indexOf('staff:') === 0 ? '店员 · ' + r.slice(6) : (RN[r] || '—');
+let openDev = {}, pwOpen = 0, uData = null;
 async function loadUsers() {
-  let d;
-  try { d = await api('/accounts'); } catch (e) { $('#uTable').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  $('#uTable').innerHTML = '<table><thead><tr><th>账号</th><th>谁用</th><th>登录设备</th><th>最近登录</th><th></th></tr></thead><tbody>' +
-    d.accounts.map(a => {
-      const last = a.devices.length ? Math.max(...a.devices.map(x => x.last_at || 0)) : 0;
-      return `<tr><td>${RN[a.role]}</td><td style="color:var(--t3)">${a.role === 'op' ? '电脑上导出（你也用这个）' : '店员手机上登记'}</td>
-        <td><button class="dvn" data-r="${a.role}" type="button">${a.devices.length} / ${a.dev_limit}</button></td>
-        <td class="num">${last ? tm(last) : '—'}</td>
-        <td class="acts">${pwOpen === a.role
-          ? `<span class="pwrow"><input id="pw_${a.role}" placeholder="新密码，至少 6 位" autocomplete="off"><button class="btn sm" data-pwsave="${a.role}" type="button">保存</button><button class="btn sm" data-pwcancel type="button">取消</button></span>`
-          : `<button class="btn sm" data-pw="${a.role}" type="button">重置密码</button>`}</td></tr>` +
-        (openDev[a.role] ? `<tr class="devs"><td colspan="5">${a.devices.length ? a.devices.map(x => `<div class="dv"><span class="l">${esc(x.label)}${x.id === d.me ? '<span class="me">这台</span>' : ''}</span><span class="t">首次 ${tm(x.created)}　最近 ${tm(x.last_at)}</span>${x.id === d.me ? '' : `<button class="btn sm" data-kick="${x.id}" type="button">移出</button>`}</div>`).join('') : '<div class="dv"><span class="l" style="color:var(--t3)">没有设备登录</span></div>'}</td></tr>` : '');
-    }).join('') + '</tbody></table>';
-  document.querySelectorAll('.dvn').forEach(b => b.onclick = () => { openDev[b.dataset.r] = !openDev[b.dataset.r]; loadUsers(); });
-  document.querySelectorAll('[data-pw]').forEach(b => b.onclick = () => { pwOpen = b.dataset.pw; loadUsers().then(() => { const i = $('#pw_' + pwOpen); if (i) i.focus(); }); });
-  document.querySelectorAll('[data-pwcancel]').forEach(b => b.onclick = () => { pwOpen = ''; loadUsers(); });
+  try { uData = await api('/accounts'); } catch (e) { $('#uTable').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  paintUsers();
+}
+$('#uQ').oninput = () => paintUsers();
+function paintUsers() {
+  const d = uData; if (!d) return;
+  const kw = $('#uQ').value.trim();
+  const byStore = {}; d.accounts.forEach(a => { if (a.role === 'staff') byStore[a.store] = a; });
+  const row = a => {
+    const last = a.devices.length ? Math.max(...a.devices.map(x => x.last_at || 0)) : 0;
+    return `<tr><td>${a.role === 'op' ? '后台（操作员）' : esc(a.store)}${a.locked ? '<span class="lk">输错锁定中</span>' : ''}</td><td style="color:var(--t3)">${a.role === 'op' ? '电脑上导出（你也用这个）' : esc(STORE_MGR[a.store] || '')}</td>
+      <td><button class="dvn" data-u="${a.id}" type="button">${a.devices.length} / ${a.dev_limit}</button></td>
+      <td class="num">${last ? tm(last) : '—'}</td>
+      <td class="acts">${pwOpen === a.id
+        ? `<span class="pwrow"><input id="pw_${a.id}" placeholder="新密码，至少 6 位" autocomplete="off"><button class="btn sm" data-pwsave="${a.id}" type="button">保存</button><button class="btn sm" data-pwcancel type="button">取消</button></span>`
+        : `<button class="btn sm" data-pw="${a.id}" type="button">重置密码</button>`}</td></tr>` +
+      (openDev[a.id] ? `<tr class="devs"><td colspan="5">${a.devices.length ? a.devices.map(x => `<div class="dv"><span class="l">${esc(x.label)}${x.id === d.me ? '<span class="me">这台</span>' : ''}</span><span class="t">首次 ${tm(x.created)}　最近 ${tm(x.last_at)}</span>${x.id === d.me ? '' : `<button class="btn sm" data-kick="${x.id}" type="button">移出</button>`}</div>`).join('') : '<div class="dv"><span class="l" style="color:var(--t3)">没有设备登录</span></div>'}</td></tr>` : '');
+  };
+  let h = '';
+  const op = d.accounts.find(a => a.role === 'op');
+  if (op && (!kw || '后台操作员'.indexOf(kw) >= 0)) h += row(op);
+  let nStore = 0;
+  STORES.forEach(([m, list]) => {
+    const hit = list.filter(st => byStore[st] && (!kw || st.indexOf(kw) >= 0 || m.indexOf(kw) >= 0));
+    if (!hit.length) return;
+    nStore += hit.length;
+    h += `<tr class="grp"><td colspan="5">${esc(m)} · ${hit.length} 家店</td></tr>` + hit.map(st => row(byStore[st])).join('');
+  });
+  $('#uN').textContent = (op ? 1 : 0) + Object.keys(byStore).length;
+  $('#uTable').innerHTML = '<table><thead><tr><th>账号</th><th>谁用</th><th>登录设备</th><th>最近登录</th><th></th></tr></thead><tbody>' + (h || '<tr><td colspan="5" class="empty">没有对上的</td></tr>') + '</tbody></table>';
+  document.querySelectorAll('.dvn').forEach(b => b.onclick = () => { openDev[b.dataset.u] = !openDev[b.dataset.u]; paintUsers(); });
+  document.querySelectorAll('[data-pw]').forEach(b => b.onclick = () => { pwOpen = +b.dataset.pw; paintUsers(); const i = $('#pw_' + pwOpen); if (i) i.focus(); });
+  document.querySelectorAll('[data-pwcancel]').forEach(b => b.onclick = () => { pwOpen = 0; paintUsers(); });
   document.querySelectorAll('[data-pwsave]').forEach(b => b.onclick = async () => {
-    const pw = $('#pw_' + b.dataset.pwsave).value.trim();
+    const id = +b.dataset.pwsave, pw = $('#pw_' + id).value.trim();
     if (pw.length < 6) return toast('密码至少 6 位');
-    try { await api('/password', { role: b.dataset.pwsave, password: pw }); pwOpen = ''; loadUsers(); toast(RN[b.dataset.pwsave] + '密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
+    const a = d.accounts.find(x => x.id === id);
+    try { await api('/password', { uid: id, password: pw }); pwOpen = 0; loadUsers(); toast((a.role === 'op' ? '后台' : a.store) + ' 密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
   });
   document.querySelectorAll('[data-kick]').forEach(b => b.onclick = async () => {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定移出？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '移出'; }, 3000); return; }
@@ -871,7 +895,7 @@ async function lLoad(reset) {
   $('#lMore').hidden = d.rows.length < 200;
   $('#lInfo').textContent = `一共 ${d.total} 条记录，这里显示 ${lRows.length} 条`;
   $('#lTable').innerHTML = !lRows.length ? '<div class="empty">没有记录</div>' : '<table><thead><tr><th>时间</th><th>账号</th><th>做了什么</th><th>详情</th><th>设备 · IP</th></tr></thead><tbody>' +
-    lRows.map(x => `<tr><td class="t">${lTime(x.at)}</td><td class="a">${RN[x.role] || '—'}</td><td class="a"><span class="tag ${WARN.has(x.act) ? 'warn' : ''}">${ACT[x.act] || x.act}</span></td><td>${esc(x.info || '')}</td><td class="d">${esc(x.dev || '')}<br>${esc(x.ip || '')}</td></tr>`).join('') + '</tbody></table>';
+    lRows.map(x => `<tr><td class="t">${lTime(x.at)}</td><td class="a">${esc(roleName(x.role))}</td><td class="a"><span class="tag ${WARN.has(x.act) ? 'warn' : ''}">${ACT[x.act] || x.act}</span></td><td>${esc(x.info || '')}</td><td class="d">${esc(x.dev || '')}<br>${esc(x.ip || '')}</td></tr>`).join('') + '</tbody></table>';
 }
 $('#lAct').onchange = () => lLoad(true);
 let lT; $('#lQ').oninput = () => { clearTimeout(lT); lT = setTimeout(() => lLoad(true), 400); };
