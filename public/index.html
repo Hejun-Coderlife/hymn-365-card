@@ -385,14 +385,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121311"></script>
-<script src="report.js?v=202611121311"></script>
-<script src="xsel.js?v=202611121311"></script>
-<script src="datepick.js?v=202611121311"></script>
-<script src="api.js?v=202611121311"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121311"></script>
-<script src="xls.js?v=202611121311"></script>
-<script src="gen.js?v=202611121311"></script>
+<script src="stores.js?v=202611121317"></script>
+<script src="report.js?v=202611121317"></script>
+<script src="xsel.js?v=202611121317"></script>
+<script src="datepick.js?v=202611121317"></script>
+<script src="api.js?v=202611121317"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121317"></script>
+<script src="xls.js?v=202611121317"></script>
+<script src="gen.js?v=202611121317"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -805,7 +805,8 @@ function paintUsers() {
       <td class="num">${last ? tm(last) : '—'}</td>
       <td class="acts">${pwOpen === a.id
         ? `<span class="pwrow"><input id="pw_${a.id}" placeholder="新密码，至少 6 位" autocomplete="off"><button class="btn sm" data-pwsave="${a.id}" type="button">保存</button><button class="btn sm" data-pwcancel type="button">取消</button></span>`
-        : `<button class="btn sm" data-pw="${a.id}" type="button">重置密码</button>`}</td></tr>` +
+        : a.role !== 'op' ? `<button class="btn sm" data-pw="${a.id}" type="button">重置密码</button>`
+        : a.name === $('#meName').textContent ? `<button class="btn sm" data-mypw type="button">修改密码</button>` : ''}</td></tr>` +   // 后台账号只能本人改（2026-11-12 用户）
       (openDev[a.id] ? `<tr class="devs"><td colspan="5">${a.devices.length ? a.devices.map(x => `<div class="dv"><span class="l">${esc(x.label)}${x.id === d.me ? '<span class="me">这台</span>' : ''}</span><span class="t">首次 ${tm(x.created)}　最近 ${tm(x.last_at)}</span>${x.id === d.me ? '' : `<button class="btn sm" data-kick="${x.id}" type="button">移出</button>`}</div>`).join('') : '<div class="dv"><span class="l" style="color:var(--t3)">没有设备登录</span></div>'}</td></tr>` : '');
   };
   let h = '';
@@ -822,6 +823,7 @@ function paintUsers() {
   $('#uTable').innerHTML = '<table><thead><tr><th>账号</th><th>谁用</th><th>登录设备</th><th>最近登录</th><th></th></tr></thead><tbody>' + (h || '<tr><td colspan="5" class="empty">没有对上的</td></tr>') + '</tbody></table>';
   document.querySelectorAll('.dvn').forEach(b => b.onclick = () => { openDev[b.dataset.u] = !openDev[b.dataset.u]; paintUsers(); });
   document.querySelectorAll('[data-pw]').forEach(b => b.onclick = () => { pwOpen = +b.dataset.pw; paintUsers(); const i = $('#pw_' + pwOpen); if (i) i.focus(); });
+  document.querySelectorAll('[data-mypw]').forEach(b => b.onclick = () => $('#myPw').click());
   document.querySelectorAll('[data-pwcancel]').forEach(b => b.onclick = () => { pwOpen = 0; paintUsers(); });
   document.querySelectorAll('[data-pwsave]').forEach(b => b.onclick = async () => {
     const id = +b.dataset.pwsave, pw = $('#pw_' + id).value.trim();

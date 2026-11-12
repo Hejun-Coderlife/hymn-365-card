@@ -367,6 +367,8 @@ async function handle(req, env) {
     if (pass.length < 6) throw bad('密码至少 6 位');
     const t = await db.prepare('SELECT id, role, store, name FROM users WHERE id = ?').bind(Number(b.uid) || 0).first();
     if (!t) throw bad('没有这个账号');
+    // 后台账号只能本人改（走 /password/self，要原密码）；别人谁都重置不了（2026-11-12 用户）
+    if (t.role === 'op') throw new HttpError(403, t.id === u.id ? '改自己的密码请点「修改密码」，要输原密码' : '后台账号只能本人改密码');
     const salt = randHex(16);
     const keep = t.id === u.id ? await sha256(cookie(req, 'c365_s')) : '';
     await db.batch([
