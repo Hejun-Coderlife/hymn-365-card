@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>365金卡 · 店员登记</title>
+<title>套餐销售登记</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23d9804a'/%3E%3Ctext x='32' y='42' fill='%23fbf1e3' font-family='Georgia,serif' font-weight='700' font-size='27' text-anchor='middle'%3E365%3C/text%3E%3C/svg%3E">
 <!-- 店员手机页：照抖音看板门店页的语言（白底、发丝线、直角、Didot 只给数字、粉只给要注意的量） -->
 <style>
@@ -39,6 +39,18 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .seg button{flex:1;border:0;background:#fff;padding:10px 4px;font-size:15px;color:var(--t2)}
 .seg button+button{border-left:1px solid var(--chip)}
 .seg button.on{background:var(--brand);color:#fff;border-color:var(--brand)}   /* 2026-11-11 用户：店员版按钮用赫眉粉；同日又说色系照抖音看板登录页 → 深粉 #B9808B + 背景粉色光丝 */
+.pk{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1;padding:12px 0}
+.pk button{border:1px solid var(--chip);background:#fff;padding:10px 6px;text-align:center;line-height:1.45}
+.pk button b{display:block;font-weight:500;font-size:13px;white-space:nowrap;letter-spacing:-.02em}
+.pk button i{font-style:normal;font-family:var(--num);font-size:16px;color:var(--t2)}
+.pk button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.pk button.on i{color:#fff}
+.row[hidden]{display:none}
+.row textarea{flex:1;border:1px solid var(--chip);outline:none;padding:10px;font:inherit;font-size:16px;margin:12px 0;min-height:76px;resize:vertical;background:#fff}
+.row textarea:focus{border-color:var(--pink-deep)}
+.storeline{display:flex;align-items:baseline;gap:10px}
+.storeline b{font-weight:500;color:var(--ink)}
+.storeline a{color:var(--t3);text-decoration:underline;font-size:12px}
 .bad{color:var(--pink-deep)!important}
 .go{width:100%;margin-top:24px;background:var(--brand);color:#fff;border:0;padding:16px;font-size:16px;letter-spacing:.12em}
 .go:disabled{background:var(--t4)}
@@ -71,13 +83,15 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 <body>
 <div class="top"><img src="logo-ink.png" alt="赫眉 HYMN"><button class="out" id="out" type="button">退出</button></div>
 <div class="wrap">
-  <h2><span class="gsw">365金卡</span>登记</h2>
-  <div class="sub">填好提交，总部统一导入系统</div>
+  <h2><span class="gsw">套餐销售登记</span></h2>
+  <div class="sub storeline"><b id="storeName">—</b><a id="chStore" href="javascript:">换门店</a></div>
 
   <form class="form" id="f" autocomplete="off">
-    <div class="row"><label>门店</label><select id="store"><option value="">选你的门店</option></select><span class="tip">会记住</span></div>
-    <div class="row"><label>工号</label><input id="no" placeholder="你的工号" maxlength="20" required><span class="tip">会记住</span></div>
-    <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button></div></div>
+    <!-- 门店在登录页选（2026-11-12 用户）；工号下拉只列这家店的 -->
+    <div class="row"><label>工号</label><select id="no"><option value="">选你的工号</option></select><span class="tip">会记住</span></div>
+    <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button><button type="button" data-v="other">其它</button></div></div>
+    <div class="row" id="pkRow" hidden><label>套餐</label><div class="pk" id="pk"></div></div>
+    <div class="row" id="noteRow" hidden><label>备注</label><textarea id="note" maxlength="200" placeholder="写清楚办的是什么"></textarea></div>
     <div class="row"><label>会员姓名</label><input id="name" placeholder="姓名" maxlength="30"></div>
     <div class="row"><label>手机号</label><input id="phone" class="num" type="tel" inputmode="numeric" placeholder="11 位手机号" maxlength="13" required></div>
     <div class="row"><label id="dlab">开卡日期</label><input id="date" class="num" type="date"></div>
@@ -87,87 +101,95 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 
   <div class="list">
     <h3><span id="lt">我提交的 · 近 30 天</span><b id="cnt"></b></h3>
-    <div id="items"><div class="empty">填了工号就能看到自己提交过的</div></div>
+    <div id="items"><div class="empty">选了工号就能看到自己提交过的</div></div>
   </div>
 </div>
 
-<script src="fx.js?v=202611112004"></script>
+<script src="fx.js?v=202611120943"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611112004"></script>
-<script src="xsel.js?v=202611112004"></script>
-<script src="datepick.js?v=202611112004"></script>
-<script src="api.js?v=202611112004"></script>
+<script src="stores.js?v=202611120943"></script>
+<script src="xsel.js?v=202611120943"></script>
+<script src="datepick.js?v=202611120943"></script>
+<script src="api.js?v=202611120943"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
-// 门店下拉：按区域经理分组
-$('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
-XSel.attach($('#store'), { placeholder: true });   // 自画下拉，手机上从底部弹出、能搜   // 中文日历（浏览器自带的跟系统语言走）
+XSel.attach($('#no'), { placeholder: true });   // 自画下拉，手机上从底部弹出，超过 10 人能搜
+$('#pk').innerHTML = PKGS.map((p, i) => `<button type="button" data-i="${i}"><b>${p[0]}</b><i>${p[1]}</i></button>`).join('');
+let STORE = '';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const today = new Date();
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const nextMonth1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 const ymd = s => s.replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1/$2/$3');
 
-// 刷新不丢：工号、办卡类型一直记着；填了一半的姓名/手机号/日期当天记着
+// 刷新不丢：工号一直记着（按门店）；办卡 / 套餐 / 备注 / 姓名 / 手机号 / 日期当天记着。
+// 办卡和套餐每单都要自己选（2026-11-12 用户：必须选），提交完清空
 const KEY = 'c365_store';
-let kind = 'new', dateTouched = false;
+let kind = '', pkg = -1, dateTouched = false, sv = {};
 try {
-  const sv = JSON.parse(localStorage.getItem(KEY) || '{}');
-  if (sv.no) $('#no').value = sv.no;
-  if (sv.store && STORE_MGR[sv.store]) $('#store').value = sv.store;
-  if (sv.kind) kind = sv.kind;
-  if (sv.day === iso(today)) { $('#name').value = sv.name || ''; $('#phone').value = sv.phone || ''; if (sv.date) { $('#date').value = sv.date; dateTouched = true; } }
+  sv = JSON.parse(localStorage.getItem(KEY) || '{}');
+  if (sv.day === iso(today)) {
+    kind = sv.kind || ''; pkg = sv.pkg != null ? sv.pkg : -1; $('#note').value = sv.note || '';
+    $('#name').value = sv.name || ''; $('#phone').value = sv.phone || ''; if (sv.date) { $('#date').value = sv.date; dateTouched = true; }
+  }
 } catch (e) {}
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ no: $('#no').value.trim(), store: $('#store').value, kind, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) })); } catch (e) {}
+  const nos = Object.assign({}, sv.nos || {}); if (STORE) nos[STORE] = $('#no').value;
+  sv = { nos, kind, pkg, note: $('#note').value, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) };
+  try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch (e) {}
 }
 function paintKind() {
   document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
-  $('#dlab').textContent = kind === 'renew' ? '续卡起算' : '开卡日期';
+  document.querySelectorAll('#pk button').forEach(b => b.classList.toggle('on', +b.dataset.i === pkg));
+  $('#pkRow').hidden = !(kind === 'new' || kind === 'renew');
+  $('#noteRow').hidden = kind !== 'other';
+  $('#dlab').textContent = kind === 'renew' ? '续卡起算' : kind === 'other' ? '日期' : '开卡日期';
   if (!dateTouched) $('#date').value = iso(kind === 'renew' ? nextMonth1 : today);   // 续卡默认下个月 1 号
 }
-document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { kind = b.dataset.v; dateTouched = false; paintKind(); save(); });
+document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { kind = b.dataset.v; dateTouched = false; paintKind(); save(); if (kind === 'other') $('#note').focus(); });
+document.querySelectorAll('#pk button').forEach(b => b.onclick = () => { pkg = +b.dataset.i; paintKind(); save(); });
+$('#note').oninput = save;
 paintKind();
 
 const phoneOf = () => $('#phone').value.replace(/\D/g, '');
 $('#phone').oninput = () => { $('#phone').classList.toggle('bad', phoneOf().length > 0 && !/^1\d{10}$/.test(phoneOf()) && phoneOf().length >= 11); save(); };
 $('#name').oninput = save;
-$('#store').onchange = save;
 $('#date').oninput = () => { dateTouched = true; save(); };
-let lt;
-$('#no').oninput = () => { save(); clearTimeout(lt); lt = setTimeout(load, 500); };
+$('#no').onchange = () => { save(); load(); };
 
 function msg(t, ok) { $('#msg').textContent = t; $('#msg').className = 'msg ' + (ok ? 'ok' : 'err'); }
 
 $('#f').onsubmit = async e => {
   e.preventDefault();
-  const no = $('#no').value.trim(), phone = phoneOf();
-  if (!$('#store').value) return msg('请先选门店');
-  if (!no) return msg('请先填工号');
+  const no = $('#no').value, phone = phoneOf();
+  if (!no) return msg('请先选工号');
+  if (!kind) return msg('请选新开卡 / 续卡 / 其它');
+  if (kind !== 'other' && pkg < 0) return msg('请选套餐');
+  if (kind === 'other' && !$('#note').value.trim()) { $('#note').focus(); return msg('选了其它，请写备注'); }
   if (!/^1\d{10}$/.test(phone)) { $('#phone').classList.add('bad'); return msg('手机号要 11 位'); }
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { staff_no: no, store: $('#store').value, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind });
+    await api('/sub', { staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: kind === 'other' ? '' : PKG_NAMES[pkg], note: kind === 'other' ? $('#note').value.trim() : '' });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
-    $('#name').value = ''; $('#phone').value = ''; dateTouched = false; paintKind(); save();
+    $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; kind = ''; pkg = -1; dateTouched = false; paintKind(); save();
     load();
   } catch (err) { msg(err.message); }
   $('#go').disabled = false;
 };
 
 async function load() {
-  const no = $('#no').value.trim();
+  const no = $('#no').value;
   $('#lt').textContent = no ? `工号 ${no} 提交的 · 近 30 天` : '我提交的 · 近 30 天';
-  if (!no) { $('#items').innerHTML = '<div class="empty">填了工号就能看到自己提交过的</div>'; $('#cnt').textContent = ''; return; }
+  if (!no) { $('#items').innerHTML = '<div class="empty">选了工号就能看到自己提交过的</div>'; $('#cnt').textContent = ''; return; }
   try {
     const { subs } = await api('/subs?staff_no=' + encodeURIComponent(no));
     $('#cnt').textContent = subs.length || '';
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
-        <div class="d">${s.store ? esc(s.store) + ' · ' : ''}${s.kind === 'renew' ? '续卡 · 从' : '新开卡 · '}${ymd(s.sdate)}${s.kind === 'renew' ? ' 起' : ''}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
-      <span class="st ${s.status}">${s.status === 'done' ? '已导入' : '待处理'}</span>
+        <div class="d">${s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : (s.kind === 'renew' ? '续卡' : '新开卡') + (s.pkg ? ' · ' + esc(s.pkg) : '') + (s.kind === 'renew' ? ' · 从' + ymd(s.sdate) + ' 起' : ' · ' + ymd(s.sdate))}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+      <span class="st ${s.status}">${s.status === 'done' ? (s.kind === 'other' ? '已处理' : '已导入') : '待处理'}</span>
       ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
       : '<div class="empty">还没有提交过</div>';
     // 删除要点两下，防误触
@@ -178,7 +200,17 @@ async function load() {
   } catch (err) { $('#items').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
 }
 $('#out').onclick = logout;
-api('/me').then(r => { if (r.role !== 'staff' && r.role !== 'op') logout(); load(); }).catch(() => {});
+$('#chStore').onclick = logout;   // 换门店 = 退出重新登录选
+api('/me').then(async r => {
+  if (r.role === 'op') { location.replace('/'); return; }
+  if (r.role !== 'staff' || !r.store) return logout();   // 老会话没选过门店：退出重登
+  STORE = r.store; $('#storeName').textContent = r.store;
+  const { staff } = await api('/staff');
+  $('#no').innerHTML = '<option value="">选你的工号</option>' + staff.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('');
+  const keep = (sv.nos || {})[STORE];
+  if (keep && staff.some(x => x.no === keep)) $('#no').value = keep;
+  load();
+}).catch(() => {});
 </script>
 </body>
 </html>

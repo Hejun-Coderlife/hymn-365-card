@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   th      TEXT PRIMARY KEY,   -- token 的 SHA-256
   uid     INTEGER NOT NULL,
   did     INTEGER NOT NULL,   -- 设备被挤掉，会话跟着作废
-  expires INTEGER NOT NULL
+  expires INTEGER NOT NULL,
+  store   TEXT                -- 店员登录时选的门店（2026-11-12 起门店在登录页选）
 );
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -35,7 +36,9 @@ CREATE TABLE IF NOT EXISTS subs (
   name     TEXT,
   phone    TEXT NOT NULL,
   sdate    TEXT NOT NULL,     -- 起算日 YYYY-MM-DD（新开卡=开卡日，续卡=续卡从哪天算）
-  kind     TEXT NOT NULL,     -- new / renew
+  kind     TEXT NOT NULL,     -- new / renew / other（2026-11-12 加「其它」，手写备注）
+  pkg      TEXT,              -- 套餐（新开卡 / 续卡必选 4 选 1，存「女神季度管理 1980套餐」这样的全名）
+  note     TEXT,              -- 其它：手写备注
   staff_no TEXT NOT NULL,     -- 工号
   store    TEXT,              -- 门店（2026-11-11 加，战报按门店筛）
   created  INTEGER NOT NULL,
@@ -45,10 +48,21 @@ CREATE TABLE IF NOT EXISTS subs (
   del_at   INTEGER,
   del_by   TEXT,
   lock_did INTEGER,           -- 载入就锁定：哪台设备载入了（别人不能再载入），2 小时没导出失效
-  lock_at  INTEGER
+  lock_at  INTEGER,
+  edit_n   INTEGER,           -- 后台改过几次（每次必须 +1，触发器靠它放行）
+  edit_at  INTEGER
 );
 CREATE INDEX IF NOT EXISTS subs_status ON subs(status, created);
 CREATE INDEX IF NOT EXISTS subs_staff ON subs(staff_no, created);
+
+-- 员工：工号 / 姓名 / 门店（2026-11-12 用户给的美得得员工表，只取这三列；身份证、电话不进来）。
+-- 仓库是公开的，名单只在库里（tools/staff-sql.py 从 xls 出 SQL），不进 git
+CREATE TABLE IF NOT EXISTS staff (
+  no    TEXT PRIMARY KEY,
+  name  TEXT,
+  store TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS staff_store ON staff(store);
 
 -- 操作记录，只增不删
 CREATE TABLE IF NOT EXISTS audit (
@@ -66,4 +80,13 @@ CREATE TABLE IF NOT EXISTS audit (
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, '操作记录不能删除'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, '操作记录不能修改'); END;
 CREATE TRIGGER IF NOT EXISTS subs_no_delete BEFORE DELETE ON subs BEGIN SELECT RAISE(ABORT, '提交记录不能删除'); END;
-CREATE TRIGGER IF NOT EXISTS subs_no_edit BEFORE UPDATE OF name, phone, sdate, kind, staff_no, store, created ON subs BEGIN SELECT RAISE(ABORT, '提交记录内容不能修改'); END;
+-- 内容只能经后台「修改」改：edit_n 必须正好 +1，旧内容同时写进 sub_edits
+CREATE TRIGGER IF NOT EXISTS subs_no_edit BEFORE UPDATE OF name, phone, sdate, kind, pkg, note, staff_no, store, created ON subs
+  WHEN NEW.created IS NOT OLD.created OR COALESCE(NEW.edit_n, 0) <> COALESCE(OLD.edit_n, 0) + 1
+  BEGIN SELECT RAISE(ABORT, '提交记录内容只能经后台「修改」改（会留记录）'); END;
+-- 改之前的旧内容，只增不删（2026-11-12 用户：后台允许修改，但要留下记录）
+CREATE TABLE IF NOT EXISTS sub_edits (id INTEGER PRIMARY KEY AUTOINCREMENT, sid INTEGER NOT NULL, at INTEGER NOT NULL, before TEXT, after TEXT, dev TEXT);
+CREATE INDEX IF NOT EXISTS sub_edits_sid ON sub_edits(sid);
+CREATE TRIGGER IF NOT EXISTS sub_edits_no_delete BEFORE DELETE ON sub_edits BEGIN SELECT RAISE(ABORT, '修改记录不能删除'); END;
+CREATE TRIGGER IF NOT EXISTS sub_edits_no_update BEFORE UPDATE ON sub_edits BEGIN SELECT RAISE(ABORT, '修改记录不能修改'); END;
+

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>365金卡导入表 · 赫眉</title>
+<title>套餐销售登记 · 赫眉</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23d9804a'/%3E%3Ctext x='32' y='42' fill='%23fbf1e3' font-family='Georgia,serif' font-weight='700' font-size='27' text-anchor='middle'%3E365%3C/text%3E%3C/svg%3E">
 <!-- 风格照 hymn-douyin-board：纯白底、发丝线分区、直角无阴影、数字用 Didot、粉只做点缀 -->
 <style>
@@ -130,6 +130,32 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sublist tr.locked td{color:var(--t4)}
 .sublist .busy{color:var(--pink-deep);font-size:12px}
 .sublist .take{font-size:12px}
+.sublist .kd{white-space:nowrap}
+.sublist .kd small{display:block;color:var(--t3);font-size:11.5px;white-space:normal;max-width:220px}
+.sublist .ed{color:var(--pink-deep);font-size:11.5px;cursor:pointer;border-bottom:1px dotted var(--pink-deep);margin-left:4px}
+.sublist .acts{white-space:nowrap}
+.sublist .acts .lnk+.lnk,.sublist .acts span+.lnk{margin-left:10px}
+/* 修改店员提交（2026-11-12 用户：后台要允许修改，但修改后要留下记录） */
+.emask{position:fixed;inset:0;background:rgba(22,20,15,.28);z-index:80;display:flex;align-items:center;justify-content:center}
+.emask[hidden]{display:none}
+.ebox{background:#fff;width:560px;max-width:94vw;max-height:90vh;overflow:auto;padding:26px 30px 22px;border:1px solid var(--ink)}
+.ebox h4{font-size:16px;font-weight:500;letter-spacing:.06em;margin-bottom:16px}
+.ebox .f{display:flex;align-items:center;border-bottom:1px solid var(--line);min-height:46px;gap:10px}
+.ebox .f > label{width:64px;flex:none;font-size:12.5px;color:var(--t3)}
+.ebox .f input,.ebox .f textarea{flex:1;border:0;outline:none;font:inherit;font-size:14px;padding:10px 0;background:none;min-width:0}
+.ebox .f textarea{border:1px solid var(--line-2);padding:8px;margin:8px 0;min-height:60px;resize:vertical}
+.ebox .f .xs-btn,.ebox .f .dp-btn{flex:1;border:0;padding:10px 0;height:auto;font-size:14px}
+.ebox .f[hidden]{display:none}
+.ebox .chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;flex:1}
+.ebox .chips button{border:1px solid var(--line-2);background:#fff;padding:6px 12px;font-size:13px;cursor:pointer}
+.ebox .chips button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.ebox .eact{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:18px}
+.ebox .eact .err{flex:1;color:var(--pink-deep);font-size:12.5px}
+.ebox .hist:empty{display:none}
+.ebox .hist{margin-top:20px;border-top:1px solid var(--line-2);padding-top:12px;font-size:12px;color:var(--t2)}
+.ebox .hist b{font-weight:500;letter-spacing:.12em;color:var(--t3);font-size:11.5px}
+.ebox .hist div{padding:6px 0;border-bottom:1px solid var(--line);line-height:1.6}
+.ebox .hist div span{color:var(--t3);margin-right:8px}
 .sublist .loaded{color:var(--pink-deep);font-size:12px}
 .tools{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
 .btn{border:1px solid var(--line-2);background:#fff;padding:9px 18px;cursor:pointer;letter-spacing:var(--track);font-size:13px}
@@ -196,7 +222,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 <aside class="sidebar">
   <div class="logo">
     <img src="logo-ink.png" alt="赫眉 HYMN">
-    <div class="mk365">365 金卡</div>
+    <div class="mk365">套餐销售登记</div>
   </div>
   <nav class="nav">
     <div class="grp">会员</div>
@@ -224,6 +250,19 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
         <button class="btn sm" id="subHist" type="button">看已处理</button>
         <button class="btn sm" id="subRef" type="button">刷新</button></div>
       <div class="sublist" id="subList"></div>
+      <div class="emask" id="eMask" hidden><form class="ebox" id="eBox" autocomplete="off">
+        <h4 id="eTitle">修改提交</h4>
+        <div class="f"><label>门店</label><select id="eStore"></select></div>
+        <div class="f"><label>工号</label><select id="eNo"></select></div>
+        <div class="f"><label>办卡</label><div class="chips" id="eKind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button><button type="button" data-v="other">其它</button></div></div>
+        <div class="f" id="ePkRow"><label>套餐</label><div class="chips" id="ePk"></div></div>
+        <div class="f" id="eNoteRow"><label>备注</label><textarea id="eNote" maxlength="200"></textarea></div>
+        <div class="f"><label>姓名</label><input id="eName" maxlength="30"></div>
+        <div class="f"><label>手机号</label><input id="ePhone" maxlength="13"></div>
+        <div class="f"><label>日期</label><input id="eDate" type="date"></div>
+        <div class="eact"><span class="err" id="eErr"></span><button class="btn sm" id="eCancel" type="button">取消</button><button class="btn sm go1" type="submit">保存修改</button></div>
+        <div class="hist" id="eHist"></div>
+      </form></div>
     </div>
   </section>
 
@@ -289,7 +328,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 <!-- 战报（2026-11-11 用户：像抖音看板的战报，日 / 周 / 月 / 年，可筛门店 / 店员） -->
 <div class="panel" id="p-report" hidden>
   <header class="pagehead"><div>
-    <div class="eyebrow">赫眉 HYMN · 会员卡项</div><h2>365金卡战报</h2>
+    <div class="eyebrow">赫眉 HYMN · 会员卡项</div><h2>套餐销售战报</h2>
     <p>按店员提交的时间统计办卡数，生成图片发群；删掉的提交不算</p></div></header>
   <section class="sec">
     <div class="rbar">
@@ -339,15 +378,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611112004"></script>
-<script src="report.js?v=202611112004"></script>
-<script src="xsel.js?v=202611112004"></script>
-<script src="datepick.js?v=202611112004"></script>
-<script src="api.js?v=202611112004"></script>
-<script src="vendor/xlsx.full.min.js?v=202611112004"></script>
-<script src="vendor/jszip.min.js?v=202611112004"></script>
-<script src="xls.js?v=202611112004"></script>
-<script src="gen.js?v=202611112004"></script>
+<script src="stores.js?v=202611120943"></script>
+<script src="report.js?v=202611120943"></script>
+<script src="xsel.js?v=202611120943"></script>
+<script src="datepick.js?v=202611120943"></script>
+<script src="api.js?v=202611120943"></script>
+<script src="vendor/xlsx.full.min.js?v=202611120943"></script>
+<script src="vendor/jszip.min.js?v=202611120943"></script>
+<script src="xls.js?v=202611120943"></script>
+<script src="gen.js?v=202611120943"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -638,12 +677,17 @@ function paintSubs() {
   const inList = new Set(Object.keys(loaded));
   $('#subList').innerHTML = !list.length ? `<div class="empty">${showHist ? '最近 30 天没有处理过的' : '没有待处理的提交'}</div>` :
     '<table><thead><tr>' + (showHist ? '' : `<th class="ck"><label class="all"><input type="checkbox" id="ckAll" ${list.some(x => !inList.has(x.phone)) ? 'checked' : ''}>全选</label></th>`) +
-    '<th>提交时间</th><th>门店</th><th>工号</th><th>姓名</th><th>手机号</th><th>办卡</th><th>日期</th><th>' + (showHist ? '状态' : '') + '</th></tr></thead><tbody>' +
-    list.map(x => { const other = !showHist && x.lock_did && x.lock_did !== subs.me; return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}" ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
-      `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td><td>${x.kind === 'renew' ? '续卡' : '新开卡'}</td><td class="num">${sdYmd(x.sdate)}</td><td>` +
-      (showHist ? (x.status === 'done' ? `<span class="st done">已导出 ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
+    '<th>提交时间</th><th>门店</th><th>工号</th><th>姓名</th><th>手机号</th><th>办卡</th><th>日期</th><th>' + (showHist ? '状态' : '') + '</th><th></th></tr></thead><tbody>' +
+    list.map(x => { const other = !showHist && x.lock_did && x.lock_did !== subs.me, oth = x.kind === 'other';
+      // 「其它」不是 365 金卡，不能放进名单导出；勾不了，处理完点「已处理」
+      return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck">${oth ? '' : `<input type="checkbox" class="ck1" value="${x.id}" ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !inList.has(x.phone)) ? 'checked' : ''}>`}</td>`) +
+      `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
+      `<td class="kd">${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(oth ? (x.note || '') : (x.pkg || '未选套餐'))}</small></td><td class="num">${sdYmd(x.sdate)}</td><td>` +
+      (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
-        : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td></tr>'; }).join('') + '</tbody></table>';
+        : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td><td class="acts">' +
+      (x.status !== 'del' && !other ? `<button class="lnk edit" data-id="${x.id}" type="button">修改</button>` : '') +
+      (!showHist && oth && !other ? `<button class="lnk odone" data-id="${x.id}" type="button">已处理</button>` : '') + '</td></tr>'; }).join('') + '</tbody></table>';
   const all = $('#ckAll');
   if (all) all.onchange = () => { document.querySelectorAll('.ck1:not(:disabled)').forEach(c => c.checked = all.checked); goCount(); };
   document.querySelectorAll('.ck1').forEach(c => c.onchange = goCount);
@@ -653,8 +697,68 @@ function paintSubs() {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定接手？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '接手'; }, 3000); return; }
     try { const r = await api('/subs/claim', { ids: [+b.dataset.id], force: true }); if (r.ok.length) { addToList(subs.pending.filter(x => x.id === +b.dataset.id)); toast('接手了，已载入名单'); } } catch (e) { toast(e.message); }
   });
+  document.querySelectorAll('.edit').forEach(b => b.onclick = () => openEdit(list.find(x => x.id === +b.dataset.id)));
+  document.querySelectorAll('.ed').forEach(b => b.onclick = () => openEdit(list.find(x => x.id === +b.dataset.id)));
+  document.querySelectorAll('.odone').forEach(b => b.onclick = async () => {
+    if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定已处理？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '已处理'; }, 3000); return; }
+    try { await api('/subs/done', { ids: [+b.dataset.id], other: true }); loadSubs(); toast('已标为已处理'); } catch (e) { toast(e.message); }
+  });
   document.querySelectorAll('.undo').forEach(b => b.onclick = async () => { try { await api('/sub/undo', { id: +b.dataset.id }); loadSubs(); } catch (e) { toast(e.message); } });
 }
+/* 修改店员提交：改完服务器把旧内容存进 sub_edits，操作记录记「改了什么」 */
+let eCur = null, eKind = '', ePk = -1;
+$('#ePk').innerHTML = PKG_NAMES.map((n, i) => `<button type="button" data-i="${i}">${n}</button>`).join('');
+$('#eStore').innerHTML = '<option value="">选门店</option>' + STORES.map(([m, l]) => `<optgroup label="${m}">${l.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join('');
+function ePaint() {
+  document.querySelectorAll('#eKind button').forEach(b => b.classList.toggle('on', b.dataset.v === eKind));
+  document.querySelectorAll('#ePk button').forEach(b => b.classList.toggle('on', +b.dataset.i === ePk));
+  $('#ePkRow').hidden = eKind === 'other'; $('#eNoteRow').hidden = eKind !== 'other';
+}
+document.querySelectorAll('#eKind button').forEach(b => b.onclick = () => { eKind = b.dataset.v; ePaint(); });
+document.querySelectorAll('#ePk button').forEach(b => b.onclick = () => { ePk = +b.dataset.i; ePaint(); });
+async function eFillNo(keep) {
+  let st = [];
+  try { st = $('#eStore').value ? (await api('/staff?store=' + encodeURIComponent($('#eStore').value))).staff : []; } catch (e) {}
+  if (keep && !st.some(x => x.no === keep)) st.unshift({ no: keep, name: '（不在这家店的员工名单里）' });
+  $('#eNo').innerHTML = '<option value="">选工号</option>' + st.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('');
+  $('#eNo').value = keep || '';
+}
+$('#eStore').onchange = () => eFillNo('');
+async function openEdit(x) {
+  if (!x) return;
+  eCur = x; eKind = x.kind; ePk = PKG_NAMES.indexOf(x.pkg || '');
+  $('#eTitle').textContent = `修改提交 #${x.id}`;
+  $('#eStore').value = x.store || ''; $('#eName').value = x.name || ''; $('#ePhone').value = x.phone; $('#eDate').value = x.sdate; $('#eNote').value = x.note || '';
+  $('#eErr').textContent = ''; ePaint(); $('#eMask').hidden = false;
+  await eFillNo(x.staff_no);
+  $('#eHist').innerHTML = '';
+  if (x.edit_n) try {
+    const { edits } = await api('/sub/edits?id=' + x.id);
+    const F = { store: '门店', staff_no: '工号', kind: '办卡', pkg: '套餐', note: '备注', name: '姓名', phone: '手机号', sdate: '日期' };
+    const sh = (k, v) => k === 'kind' ? (KIND_NAME[v] || v) : (v == null || v === '' ? '空' : v);
+    $('#eHist').innerHTML = '<b>修改记录</b>' + edits.map(e => { const a = JSON.parse(e.before || '{}'), z = JSON.parse(e.after || '{}');
+      return `<div><span>${tm(e.at)} · ${esc(e.dev || '')}</span>${Object.keys(F).filter(k => (a[k] || '') !== (z[k] || '')).map(k => esc(F[k] + ' ' + sh(k, a[k]) + ' → ' + sh(k, z[k]))).join('；')}</div>`; }).join('');
+  } catch (e) {}
+}
+$('#eCancel').onclick = () => { $('#eMask').hidden = true; };
+$('#eMask').onclick = e => { if (e.target === $('#eMask')) $('#eMask').hidden = true; };
+$('#eBox').onsubmit = async e => {
+  e.preventDefault();
+  if (eKind !== 'other' && ePk < 0) return $('#eErr').textContent = '请选套餐';
+  if (eKind === 'other' && !$('#eNote').value.trim()) return $('#eErr').textContent = '选了其它，请写备注';
+  try {
+    const r = await api('/sub/edit', { id: eCur.id, store: $('#eStore').value, staff_no: $('#eNo').value, kind: eKind, pkg: eKind === 'other' ? '' : PKG_NAMES[ePk],
+      note: eKind === 'other' ? $('#eNote').value.trim() : '', name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
+    $('#eMask').hidden = true; toast(r.same ? '没有改动' : '已修改，改动记在操作记录里');
+    // 已经载入名单的，名单里那一行跟着换
+    if (!r.same && loaded[eCur.phone]) {
+      const ph = $('#ePhone').value.replace(/\D/g, '');
+      $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : ''].filter(Boolean).join(' ') : l).join('\n');
+      delete loaded[eCur.phone]; if (eKind !== 'other') loaded[ph] = eCur.id; saveLoaded(); update();
+    }
+    loadSubs();
+  } catch (err) { $('#eErr').textContent = err.message; }
+};
 function goCount() {
   const n = document.querySelectorAll('.ck1:checked:not(:disabled)').length;
   $('#subLoad').textContent = n ? `开始处理 ${n} 人` : '开始处理';
@@ -781,12 +885,12 @@ async function rRender() {
   try { rows = (await api(`/report?from=${r.from}&to=${r.to}`)).rows; } catch (e) { $('#rInfo').textContent = e.message; return; }
   if (seq !== rSeq) return;
   rData = Report365.compute(rows, { mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value, by: RP.by }, r);
-  $('#rInfo').textContent = `${Gen.ymd(r.fromD)} ~ ${Gen.ymd(r.toD)} · ${rData.scope} · 办卡 ${rData.total} 张`;
+  $('#rInfo').textContent = `${Gen.ymd(r.fromD)} ~ ${Gen.ymd(r.toD)} · ${rData.scope} · 共 ${rData.total} 单`;
   if (!rLogo) rLogo = await new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = 'logo-ink.png'; });
   rCanvas = Report365.draw(rData, rLogo);
   $('#rPrev').innerHTML = ''; $('#rPrev').appendChild(rCanvas);
 }
-const rName = () => { const r = rData.r; return `365金卡战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
+const rName = () => { const r = rData.r; return `套餐销售战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
 document.querySelectorAll('#rMode button').forEach(b => b.onclick = () => { RP.mode = b.dataset.m; rRender(); });
 document.querySelectorAll('#rBy button').forEach(b => b.onclick = () => { RP.by = b.dataset.b; rRender(); });
 $('#rMgr').onchange = () => { rFillStores(); rRender(); };
@@ -803,18 +907,18 @@ $('#rPng').onclick = () => { if (!rCanvas) return; const a = document.createElem
 $('#rXls').onclick = () => {
   if (!rData) return;
   const st = rData.by === 'store';
-  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '办卡数', '新开卡', '续卡']]
-    .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn]))
-    .concat([[null, '合计', null, rData.total, rData.nw, rData.rn]]);
-  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls');
+  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '单数', '新开卡', '续卡', '其它']]
+    .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn, o.ot]))
+    .concat([[null, '合计', null, rData.total, rData.nw, rData.rn, rData.ot]]);
+  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls');
   logAct('report', '下载战报 Excel：' + $('#rInfo').textContent);
 };
 
 /* ---------- 操作记录 ---------- */
-const ACT = { sub_take: '接手处理', login: '登录', logout: '退出', login_fail: '密码输错', locked: '输错锁定', login_locked: '锁定中尝试', device_new: '新设备登录', device_kick: '设备被挤掉',
+const ACT = { sub_edit: '修改提交', sub_take: '接手处理', login: '登录', logout: '退出', login_fail: '密码输错', locked: '输错锁定', login_locked: '锁定中尝试', device_new: '新设备登录', device_kick: '设备被挤掉',
   device_remove: '移出设备', password: '改密码', sub_add: '店员提交', sub_del: '删除提交', sub_done: '标为已导出', sub_undo: '撤回已导出',
   load: '载入名单', export: '导出表格', tpl: '下载模板', report: '战报' };
-const WARN = new Set(['sub_take', 'sub_del', 'login_fail', 'locked', 'login_locked', 'device_kick', 'device_remove', 'password', 'sub_undo']);
+const WARN = new Set(['sub_edit', 'sub_take', 'sub_del', 'login_fail', 'locked', 'login_locked', 'device_kick', 'device_remove', 'password', 'sub_undo']);
 $('#lAct').insertAdjacentHTML('beforeend', Object.entries(ACT).map(([k, v]) => `<option value="${k}">${v}</option>`).join(''));
 let lRows = [], lMin = 0;
 const lTime = t => { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };

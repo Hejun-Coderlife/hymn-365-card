@@ -45,13 +45,17 @@ function deviceLabel(ua) {
   return (kind + ' · ' + app).slice(0, 60);
 }
 const ROLE_NAME = { op: '操作员', staff: '店员' };
+// 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
+const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
+const KIND_NAME = { new: '新开卡', renew: '续卡', other: '其它' };
+const subDesc = (s) => s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.kind === 'renew' ? ' · 从 ' : ' · ') + s.sdate;
 
 /* ---- 会话 / 设备 ---- */
 const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
 async function currentUser(req, db) {
   const t = cookie(req, 'c365_s');
   if (!t) return null;
-  const u = await db.prepare('SELECT u.id, u.role, s.did FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
+  const u = await db.prepare('SELECT u.id, u.role, s.did, s.store FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
     .bind(await sha256(t), Date.now()).first();
   if (u) await db.prepare('UPDATE devices SET last_at = ? WHERE id = ?').bind(Date.now(), u.did).run();
   return u;
@@ -82,15 +86,19 @@ function checkSub(b) {
   const m = sdate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const dt = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   if (!dt || dt.getUTCMonth() !== +m[2] - 1 || +m[1] < 2020 || +m[1] > 2100) throw bad('日期不对');
-  const kind = b.kind === 'renew' ? 'renew' : 'new';
+  const kind = str(b.kind, 10);
+  if (!KIND_NAME[kind]) throw bad('请选新开卡 / 续卡 / 其它');
+  let pkg = null, note = null;
+  if (kind === 'other') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' '); if (!note) throw bad('选了其它，请写备注'); }
+  else { pkg = str(b.pkg, 40); if (PKGS.indexOf(pkg) < 0) throw bad('请选套餐'); }
   const staff_no = str(b.staff_no, 20);
-  if (!staff_no) throw bad('请填工号');
+  if (!staff_no) throw bad('请选工号');
   const name = str(b.name, 30).replace(/[\r\n\t]/g, ' ');
   const store = str(b.store, 30);
   if (!store) throw bad('请选门店');
-  return { name, phone, sdate, kind, staff_no, store };
+  return { name, phone, sdate, kind, pkg, note, staff_no, store };
 }
-const SUB_COLS = 'id, name, phone, sdate, kind, staff_no, store, created, status, done_at, del_at, del_by';
+const SUB_COLS = 'id, name, phone, sdate, kind, pkg, note, staff_no, store, created, status, done_at, del_at, del_by, edit_n, edit_at';
 
 async function handle(req, env) {
   const url = new URL(req.url), p = url.pathname.replace(/^\/api/, ''), db = env.DB, now = Date.now();
@@ -101,6 +109,9 @@ async function handle(req, env) {
     const u = await db.prepare('SELECT * FROM users WHERE role = ?').bind(str(b.role, 10)).first();
     const generic = new HttpError(401, '密码不对');
     if (!u) throw generic;
+    // 店员登录时就选门店（2026-11-12 用户），存在会话上；门店要是员工表里有人的店
+    const store = u.role === 'staff' ? str(b.store, 30) : null;
+    if (u.role === 'staff' && !(store && await db.prepare('SELECT 1 FROM staff WHERE store = ? LIMIT 1').bind(store).first())) throw bad('请先选门店');
     if (u.lock_until > now) await audit(req, db, u.role, 'login_locked', '锁定中还在尝试');
     if (u.lock_until > now) throw new HttpError(429, '输错太多次，' + Math.ceil((u.lock_until - now) / 60000) + ' 分钟后再试');
     if (!sameStr(await pbkdf2(String(b.password || ''), u.salt), u.hash)) {
@@ -113,8 +124,8 @@ async function handle(req, env) {
     await db.batch([db.prepare('UPDATE users SET fails = 0, lock_until = 0 WHERE id = ?').bind(u.id), db.prepare('DELETE FROM sessions WHERE expires < ?').bind(now)]);
     const dv = await bindDevice(req, db, u, now);
     const token = randHex(32);
-    await db.prepare('INSERT INTO sessions (th, uid, did, expires) VALUES (?, ?, ?, ?)').bind(await sha256(token), u.id, dv.did, now + SESSION_DAYS * DAY).run();
-    await audit(req, db, u.role, 'login', null);
+    await db.prepare('INSERT INTO sessions (th, uid, did, expires, store) VALUES (?, ?, ?, ?, ?)').bind(await sha256(token), u.id, dv.did, now + SESSION_DAYS * DAY, store).run();
+    await audit(req, db, u.role, 'login', store);
     const cookies = [sessionCookie(token, SESSION_DAYS * 86400)];
     if (dv.setCookie) cookies.push(dv.setCookie);
     return json({ ok: true, role: u.role }, 200, { 'Set-Cookie': cookies });
@@ -134,16 +145,29 @@ async function handle(req, env) {
   const isOp = u.role === 'op';
   const needOp = () => { if (!isOp) throw new HttpError(403, '没有权限'); };
 
-  if (p === '/me') return json({ role: u.role });
+  if (p === '/me') return json({ role: u.role, store: u.store || null });
+  // 工号下拉：店员看登录时选的那家店的员工；操作员可以 ?store= 看任意店
+  if (p === '/staff' && req.method === 'GET') {
+    const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
+    if (!st) return json({ staff: [] });
+    const r = await db.prepare('SELECT no, name FROM staff WHERE store = ? ORDER BY no').bind(st).all();
+    return json({ staff: r.results });
+  }
 
   // 提交一个会员（店员手机上用；操作员也能用）
   if (p === '/sub' && req.method === 'POST') {
-    const s = checkSub(await body(req));
+    const b0 = await body(req);
+    if (!isOp) {   // 店员：门店用登录时选的，工号要是这家店的
+      if (!u.store) throw new HttpError(401, '请重新登录并选门店');
+      b0.store = u.store;
+      if (!await db.prepare('SELECT 1 FROM staff WHERE no = ? AND store = ?').bind(str(b0.staff_no, 20), u.store).first()) throw bad('工号不是这家店的，请重新选');
+    }
+    const s = checkSub(b0);
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending'").bind(s.phone).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
-    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(s.name, s.phone, s.sdate, s.kind, s.staff_no, s.store, now, u.did).run();
-    await audit(req, db, u.role, 'sub_add', '#' + r.meta.last_row_id + ' ' + s.store + ' 工号 ' + s.staff_no + '：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + (s.kind === 'renew' ? '续卡从 ' : '开卡 ') + s.sdate);
+    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, note, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.staff_no, s.store, now, u.did).run();
+    await audit(req, db, u.role, 'sub_add', '#' + r.meta.last_row_id + ' ' + s.store + ' 工号 ' + s.staff_no + '：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + subDesc(s));
     return json({ ok: true, id: r.meta.last_row_id });
   }
   // 列表：店员只能看自己工号最近 30 天的；操作员看待处理的全部 + 最近 30 天处理过的
@@ -151,10 +175,10 @@ async function handle(req, env) {
     if (!isOp) {
       const no = str(url.searchParams.get('staff_no'), 20);
       if (!no) return json({ subs: [] });
-      const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, now - 30 * DAY).all();
+      const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND store = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, u.store || '', now - 30 * DAY).all();
       return json({ subs: r.results });
     }
-    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
+    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
     pend.results.forEach((x) => { if (!x.lock_did || x.lock_at < now - LOCK_MS) { x.lock_did = null; x.lock_dev = null; } });
     const done = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status <> 'pending' AND COALESCE(done_at, del_at) > ? ORDER BY COALESCE(done_at, del_at) DESC LIMIT 300").bind(now - 30 * DAY).all();
     return json({ pending: pend.results, recent: done.results, me: u.did });
@@ -164,15 +188,15 @@ async function handle(req, env) {
     const b = await body(req);
     const s = await db.prepare('SELECT * FROM subs WHERE id = ?').bind(Number(b.id) || 0).first();
     if (!s || s.status !== 'pending') throw bad('这条已经处理过，不能删了');
-    if (!isOp && s.staff_no !== str(b.staff_no, 20)) throw new HttpError(403, '只能删自己工号提交的');
+    if (!isOp && (s.staff_no !== str(b.staff_no, 20) || s.store !== u.store)) throw new HttpError(403, '只能删自己工号提交的');
     await db.prepare("UPDATE subs SET status = 'del', del_at = ?, del_by = ? WHERE id = ?").bind(now, isOp ? '操作员' : '工号 ' + s.staff_no, s.id).run();
-    await audit(req, db, u.role, 'sub_del', '#' + s.id + ' 删除（' + (isOp ? '操作员删的' : '工号 ' + s.staff_no + ' 自己删的') + '）：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + (s.kind === 'renew' ? '续卡从 ' : '开卡 ') + s.sdate + ' · 原提交工号 ' + s.staff_no);
+    await audit(req, db, u.role, 'sub_del', '#' + s.id + ' 删除（' + (isOp ? '操作员删的' : '工号 ' + s.staff_no + ' 自己删的') + '）：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + subDesc(s) + ' · 原提交工号 ' + s.staff_no);
     return json({ ok: true });
   }
   // 操作员导出后标「已导出」
   if (p === '/subs/done' && req.method === 'POST') {
     needOp();
-    const ids = ((await body(req)).ids || []).map(Number).filter((x) => x > 0).slice(0, 500);
+    const bd = await body(req), ids = (bd.ids || []).map(Number).filter((x) => x > 0).slice(0, 500);
     for (let i = 0; i < ids.length; i += 50) {
       const part = ids.slice(i, i + 50);
       await db.prepare("UPDATE subs SET status = 'done', done_at = ? WHERE status = 'pending' AND id IN (" + part.map(() => '?').join(',') + ')').bind(now, ...part).run();
@@ -183,7 +207,7 @@ async function handle(req, env) {
         const part = ids.slice(i, i + 50);
         rows.push(...(await db.prepare('SELECT id, name, phone FROM subs WHERE id IN (' + part.map(() => '?').join(',') + ')').bind(...part).all()).results);
       }
-      await audit(req, db, u.role, 'sub_done', ids.length + ' 条标为已导出：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
+      await audit(req, db, u.role, 'sub_done', ids.length + ' 条标为' + (bd.other ? '已处理（其它）' : '已导出') + '：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
     }
     return json({ ok: true });
   }
@@ -207,6 +231,34 @@ async function handle(req, env) {
     for (const id of ids) await db.prepare('UPDATE subs SET lock_did = NULL, lock_at = NULL WHERE id = ? AND lock_did = ?').bind(id, u.did).run();
     return json({ ok: true });
   }
+  // 操作员改店员提交的内容（2026-11-12 用户：后台要允许修改，但修改后要留下记录）。
+  // 库里触发器只放行 edit_n 正好 +1 的改动；改之前的旧内容先写进 sub_edits（只增不删），操作记录里也记一条「改了什么」
+  if (p === '/sub/edit' && req.method === 'POST') {
+    needOp();
+    const b = await body(req);
+    const old = await db.prepare('SELECT * FROM subs WHERE id = ?').bind(Number(b.id) || 0).first();
+    if (!old) throw bad('这条提交不在了');
+    if (old.status === 'del') throw bad('删掉的不能改');
+    const n = checkSub(b);
+    const F = { name: '姓名', phone: '手机号', sdate: '日期', kind: '办卡', pkg: '套餐', note: '备注', staff_no: '工号', store: '门店' };
+    const show = (k, v) => k === 'kind' ? KIND_NAME[v] || v : (v == null || v === '' ? '空' : v);
+    const diff = Object.keys(F).filter((k) => (old[k] || '') !== (n[k] || '')).map((k) => F[k] + ' ' + show(k, old[k]) + ' → ' + show(k, n[k]));
+    if (!diff.length) return json({ ok: true, same: true });
+    if (n.phone !== old.phone && await db.prepare("SELECT 1 FROM subs WHERE phone = ? AND status = 'pending' AND id <> ?").bind(n.phone, old.id).first()) throw bad('这个手机号已经有一条待处理的');
+    await db.batch([
+      db.prepare('INSERT INTO sub_edits (sid, at, before, after, dev) VALUES (?, ?, ?, ?, ?)').bind(old.id, now,
+        JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, old[k]]))), JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, n[k]]))), deviceLabel(req.headers.get('User-Agent'))),
+      db.prepare('UPDATE subs SET name = ?, phone = ?, sdate = ?, kind = ?, pkg = ?, note = ?, staff_no = ?, store = ?, edit_n = COALESCE(edit_n, 0) + 1, edit_at = ? WHERE id = ?')
+        .bind(n.name, n.phone, n.sdate, n.kind, n.pkg, n.note, n.staff_no, n.store, now, old.id)
+    ]);
+    await audit(req, db, u.role, 'sub_edit', '#' + old.id + ' ' + (old.name || '') + ' ' + old.phone + ' 改了：' + diff.join('；'));
+    return json({ ok: true });
+  }
+  if (p === '/sub/edits' && req.method === 'GET') {
+    needOp();
+    const r = await db.prepare('SELECT at, before, after, dev FROM sub_edits WHERE sid = ? ORDER BY id DESC').bind(Number(url.searchParams.get('id')) || 0).all();
+    return json({ edits: r.results });
+  }
   // 撤回「已导出」（点错了）
   if (p === '/sub/undo' && req.method === 'POST') {
     needOp();
@@ -226,7 +278,7 @@ async function handle(req, env) {
   if (p === '/report' && req.method === 'GET') {
     needOp();
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
-    const r = await db.prepare("SELECT store, staff_no, kind, created FROM subs WHERE status <> 'del' AND created >= ? AND created < ? ORDER BY created").bind(from, to).all();
+    const r = await db.prepare("SELECT store, staff_no, kind, pkg, created FROM subs WHERE status <> 'del' AND created >= ? AND created < ? ORDER BY created").bind(from, to).all();
     return json({ rows: r.results });
   }
   // 页面上做的事（服务器看不到的）：导出、载入名单、下载模板

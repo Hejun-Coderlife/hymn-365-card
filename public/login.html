@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>登录 · 365金卡</title>
+<title>登录 · 套餐销售登记</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23d9804a'/%3E%3Ctext x='32' y='42' fill='%23fbf1e3' font-family='Georgia,serif' font-weight='700' font-size='27' text-anchor='middle'%3E365%3C/text%3E%3C/svg%3E">
 <style>
 :root{--line-2:#E3DFD6;--chip:#DAD4C8;--pink:#D9A6AE;--ink:#16140F;--t2:#4A453C;--t3:#9C958A;--t4:#B4ADA1;--pink-deep:#B9808B;--pink-bg:#FAF2F3;
@@ -24,6 +24,10 @@ input{width:100%;border:1px solid var(--chip);padding:14px;font-size:17px;outlin
 input:focus{border-color:var(--pink-deep)}
 .go{width:100%;margin-top:30px;background:var(--pink-deep);color:#fff;border:0;padding:15px;font-size:15px;letter-spacing:.1em;cursor:pointer}
 .go:disabled{background:var(--t4)}
+.store{margin-bottom:22px}
+.store[hidden]{display:none}
+.store .xs-btn{width:100%;height:auto;padding:14px;font-size:17px;border-color:var(--chip)}
+.store .xs-btn.open,.store .xs-btn:hover{border-color:var(--pink-deep)}
 .err{min-height:22px;margin-top:14px;font-size:13px;color:var(--pink-deep);text-align:center}
 .hint{margin-top:26px;font-size:12px;color:var(--t4);text-align:center;line-height:1.8}
 .gsw{display:inline-block;
@@ -38,32 +42,41 @@ input:focus{border-color:var(--pink-deep)}
 <body>
 <form class="box" id="f">
   <img class="logo" src="logo-ink.png" alt="赫眉 HYMN">
-  <h1><span class="gsw">365金卡</span></h1>
+  <h1><span class="gsw">套餐销售登记</span></h1>
   <div class="seg" id="role">
     <button type="button" data-v="staff">店员</button>
     <button type="button" data-v="op">操作员</button>
   </div>
+  <!-- 店员登录就选门店（2026-11-12 用户），进去后不用再选 -->
+  <div class="store" id="storeBox"><label>门店</label><select id="store"><option value="">选你的门店</option></select></div>
   <label for="pw">密码</label>
   <input type="password" id="pw" autocomplete="current-password" required>
   <button class="go" id="go" type="submit">登录</button>
   <div class="err" id="err"></div>
   <div class="hint">每个账号最多 5 台设备同时登录<br>超过时，最久没用的那台会自动退出</div>
 </form>
-<script src="fx.js?v=202611112004"></script>
+<script src="fx.js?v=202611120943"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="api.js?v=202611112004"></script>
+<script src="stores.js?v=202611120943"></script>
+<script src="xsel.js?v=202611120943"></script>
+<script src="api.js?v=202611120943"></script>
 <script>
 const $ = s => document.querySelector(s);
 // 默认角色：手机默认店员，电脑默认操作员；记住上次选的
 let role = localStorage.getItem('c365_role') || (/Mobi|Android|iPhone/.test(navigator.userAgent) ? 'staff' : 'op');
-const paint = () => document.querySelectorAll('#role button').forEach(b => b.classList.toggle('on', b.dataset.v === role));
+$('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
+const sv = localStorage.getItem('c365_login_store'); if (sv && STORE_MGR[sv]) $('#store').value = sv;
+XSel.attach($('#store'), { placeholder: true });
+$('#store').onchange = () => localStorage.setItem('c365_login_store', $('#store').value);
+const paint = () => { document.querySelectorAll('#role button').forEach(b => b.classList.toggle('on', b.dataset.v === role)); $('#storeBox').hidden = role !== 'staff'; };
 document.querySelectorAll('#role button').forEach(b => b.onclick = () => { role = b.dataset.v; paint(); $('#pw').focus(); });
 paint();
 $('#f').onsubmit = async e => {
   e.preventDefault();
+  if (role === 'staff' && !$('#store').value) { $('#err').textContent = '请先选门店'; return; }
   $('#go').disabled = true; $('#err').textContent = '';
   try {
-    const r = await api('/login', { role, password: $('#pw').value });
+    const r = await api('/login', { role, password: $('#pw').value, store: role === 'staff' ? $('#store').value : '' });
     localStorage.setItem('c365_role', role);
     const to = new URLSearchParams(location.search).get('to');
     location.href = r.role === 'staff' ? '/store.html' : (to && !/^\/store/.test(to) ? to : '/');
