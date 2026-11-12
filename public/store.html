@@ -114,12 +114,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="fx.js?v=202611121016"></script>
+<script src="fx.js?v=202611121017"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121016"></script>
-<script src="xsel.js?v=202611121016"></script>
-<script src="datepick.js?v=202611121016"></script>
-<script src="api.js?v=202611121016"></script>
+<script src="stores.js?v=202611121017"></script>
+<script src="xsel.js?v=202611121017"></script>
+<script src="datepick.js?v=202611121017"></script>
+<script src="api.js?v=202611121017"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -217,7 +217,7 @@ async function load() {
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
         <div class="d">${s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : KIND_NAME[s.kind] + (s.pkg ? ' · ' + esc(s.pkg) + (s.qty > 1 ? ' ×' + s.qty : '') : '') + (s.kind === 'renew' ? ' · 原卡到期 ' + ymd(s.sdate) : ' · ' + ymd(s.sdate)) + (s.giver_phone ? ' · ' + esc(s.giver_name || '') + ' 送的' : '')}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
-      <span class="st ${s.status}">${s.status === 'done' ? '后台已完成' : '待处理'}</span>
+      <span class="st ${s.status}">${s.status === 'done' ? '已处理' : '待处理'}</span>
       ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
       : '<div class="empty">还没有提交过</div>';
     // 删除要点两下，防误触
