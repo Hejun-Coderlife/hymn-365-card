@@ -13,4 +13,4 @@ window.STORES.forEach(([m, list]) => list.forEach(s => { window.STORE_MGR[s] = m
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1，名字只要海报上的头两行）。[名字, 价格行]；存的全名 = 名字 + 空格 + 价格行，跟 src/index.js 的 PKGS 一致
 const PKGS = [['女神季度管理', '1980套餐'], ['女神全套季度管理', '3980套餐'], ['女神全套半年度管理', '6980套餐'], ['女神全套年度管理', '19800套餐']];
 const PKG_NAMES = PKGS.map(p => p[0] + ' ' + p[1]);
-const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它' };   // 2026-11-12 用户改的叫法
+const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它', refund: '退货' };   // 2026-11-12 用户改的叫法

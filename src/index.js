@@ -51,8 +51,8 @@ const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role =
 const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : u.name ? '后台 ' + u.name : ROLE_NAME[u.role] || u.role;
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
-const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它' };   // 2026-11-12 用户改的叫法
-const subDesc = (s) => s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
+const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它', refund: '退货' };   // refund 2026-11-12 加：只给后台处理，不导表   // 2026-11-12 用户改的叫法
+const subDesc = (s) => s.kind === 'refund' ? '退货 · ' + s.sdate + (s.note ? '（' + s.note + '）' : '') : s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
   (s.giver_phone ? ' · 送朋友：' + (s.giver_name || '') + ' ' + s.giver_phone + ' 送的' : '');
 
 /* ---- 会话 / 设备 ---- */
@@ -95,13 +95,15 @@ function checkSub(b) {
   if (!KIND_NAME[kind]) throw bad('请选新开卡 / 续卡 / 其它');
   let pkg = null, note = null;
   if (kind === 'other') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' '); if (!note) throw bad('选了其它，请写备注'); }
+  else if (kind === 'refund') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' ') || null; if (!str(b.name, 30)) throw bad('退货请填顾客姓名'); }
   else { pkg = str(b.pkg, 40); if (PKGS.indexOf(pkg) < 0) throw bad('请选套餐'); }
   // 套餐数量（2026-11-12 用户：默认 1，可以改）
-  const qty = kind === 'other' ? null : Number(b.qty == null || b.qty === '' ? 1 : b.qty);
+  const flat = kind === 'other' || kind === 'refund';   // 这两种没有套餐 / 数量 / 送朋友
+  const qty = flat ? null : Number(b.qty == null || b.qty === '' ? 1 : b.qty);
   if (qty !== null && !(Number.isInteger(qty) && qty >= 1 && qty <= 99)) throw bad('套餐数量要 1~99');
   // 送朋友（2026-11-12 用户）：送的人、被送的人都要填名字和电话；卡办在被送的人（phone）名下
   let giver_name = null, giver_phone = null;
-  if (b.gift && kind !== 'other') {
+  if (b.gift && !flat) {
     giver_name = str(b.giver_name, 30).replace(/[\r\n\t]/g, ' ');
     giver_phone = str(b.giver_phone, 20).replace(/\D/g, '');
     if (!giver_name) throw bad('请填送的人姓名');
@@ -195,7 +197,8 @@ async function handle(req, env) {
     if (!isOp) { if (!u.store) throw new HttpError(401, '请重新登录并选门店'); b0.store = u.store; }
     if (!await db.prepare('SELECT 1 FROM staff WHERE no = ? AND store = ?').bind(str(b0.staff_no, 20), str(b0.store, 30)).first()) throw bad('工号不是这家店的，请重新选');
     const s = checkSub(b0);
-    const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending'").bind(s.phone).first();
+    // 同一手机号有没处理的就别重复提交；退货和办卡分开算（刚办的卡当天退也要能提交）
+    const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending' AND (kind = 'refund') = ?").bind(s.phone, s.kind === 'refund' ? 1 : 0).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
     const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.staff_no, s.store, now, u.did).run();
@@ -239,7 +242,7 @@ async function handle(req, env) {
         const part = ids.slice(i, i + 50);
         rows.push(...(await db.prepare('SELECT id, name, phone FROM subs WHERE id IN (' + part.map(() => '?').join(',') + ')').bind(...part).all()).results);
       }
-      await audit(req, db, who(u), 'sub_done', ids.length + ' 条标为' + (bd.other ? '已处理（其它）' : '已导出') + '：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
+      await audit(req, db, who(u), 'sub_done', ids.length + ' 条标为' + (bd.other ? '已处理（其它 / 退货）' : '已导出') + '：' + rows.map((x) => '#' + x.id + ' ' + (x.name || '') + ' ' + x.phone).join('、'));
     }
     return json({ ok: true });
   }
@@ -310,7 +313,7 @@ async function handle(req, env) {
   if (p === '/report' && req.method === 'GET') {
     needOp();
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
-    const r = await db.prepare("SELECT store, staff_no, kind, pkg, qty, created FROM subs WHERE status <> 'del' AND created >= ? AND created < ? ORDER BY created").bind(from, to).all();
+    const r = await db.prepare("SELECT store, staff_no, kind, pkg, qty, created FROM subs WHERE status <> 'del' AND kind <> 'refund' AND created >= ? AND created < ? ORDER BY created").bind(from, to).all();
     return json({ rows: r.results });
   }
   // 页面上做的事（服务器看不到的）：导出、载入名单、下载模板

@@ -46,6 +46,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .pk button.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .pk button.on i{color:#fff}
 .row[hidden]{display:none}
+/* 四个类型（2026-11-12 加退货）两行两列，手机上一行放四个字太挤 */
+.seg.k4{display:grid;grid-template-columns:1fr 1fr;margin:10px 0}
+.seg.k4 button+button{border-left:0}
+.seg.k4 button:nth-child(even){border-left:1px solid var(--chip)}
+.seg.k4 button:nth-child(n+3){border-top:1px solid var(--chip)}
+.seg.k4 button[data-v=refund].on{background:var(--t2);border-color:var(--t2)}
 .qty{display:flex;align-items:center;border:1px solid var(--chip);background:#fff}
 .qty button{width:46px;height:42px;border:0;background:#fff;font-size:20px;color:var(--t2)}
 .qty input{width:56px;text-align:center;border:0;border-left:1px solid var(--line-2);border-right:1px solid var(--line-2);padding:8px 0;font-family:var(--num);font-size:19px;outline:none}
@@ -93,7 +99,7 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <!-- 门店在登录页选（2026-11-12 用户）；工号下拉只列这家店的。操作员用店员版时这里多一行选门店（店员看不到） -->
     <div class="row" id="opStoreRow" hidden><label>门店</label><select id="opStore"><option value="">选门店</option></select><span class="tip">后台</span></div>
     <div class="row"><label>工号</label><select id="no"><option value="">选你的工号</option></select><span class="tip">会记住</span></div>
-    <div class="row"><label>办卡</label><div class="seg" id="kind"><button type="button" data-v="new">新开365卡</button><button type="button" data-v="renew">365续卡</button><button type="button" data-v="other">其它</button></div></div>
+    <div class="row"><label>类型</label><div class="seg k4" id="kind"><button type="button" data-v="new">新开365卡</button><button type="button" data-v="renew">365续卡</button><button type="button" data-v="other">其它</button><button type="button" data-v="refund">退货</button></div></div>
     <div class="row" id="pkRow" hidden><label>套餐</label><div class="pk" id="pk"></div></div>
     <!-- 套餐数量（2026-11-12 用户：默认 1，可以改） -->
     <div class="row" id="qtyRow" hidden><label>数量</label><div class="qty"><button type="button" id="qm">−</button><input id="qty" class="num" inputmode="numeric" value="1" maxlength="2"><button type="button" id="qp">＋</button></div><span class="tip" style="margin-left:12px">份</span></div>
@@ -115,12 +121,12 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
   </div>
 </div>
 
-<script src="fx.js?v=202611121110"></script>
+<script src="fx.js?v=202611121119"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121110"></script>
-<script src="xsel.js?v=202611121110"></script>
-<script src="datepick.js?v=202611121110"></script>
-<script src="api.js?v=202611121110"></script>
+<script src="stores.js?v=202611121119"></script>
+<script src="xsel.js?v=202611121119"></script>
+<script src="datepick.js?v=202611121119"></script>
+<script src="api.js?v=202611121119"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -153,15 +159,17 @@ function paintKind() {
   document.querySelectorAll('#kind button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
   document.querySelectorAll('#pk button').forEach(b => b.classList.toggle('on', +b.dataset.i === pkg));
   $('#pkRow').hidden = !(kind === 'new' || kind === 'renew');
-  $('#noteRow').hidden = kind !== 'other';
-  const g = gift && kind !== 'other';
+  $('#noteRow').hidden = kind !== 'other' && kind !== 'refund';
+  $('#note').placeholder = kind === 'refund' ? '选填：退了什么、为什么退' : '写清楚办的是什么';
+  const g = gift && (kind === 'new' || kind === 'renew');
   $('#giftRow').hidden = $('#qtyRow').hidden = !(kind === 'new' || kind === 'renew');
   document.querySelectorAll('#gift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === gift));
   $('#gnRow').hidden = $('#gpRow').hidden = !g;
   $('#nlab').textContent = g ? '被送的人' : '会员姓名'; $('#name').placeholder = g ? '被送的人姓名' : '姓名';
   $('#plab').textContent = g ? '被送人手机' : '手机号';
   // 续卡填「原卡到期日」（2026-11-12 用户），新卡从这天算；要店员自己选，不给默认
-  $('#dlab').textContent = kind === 'renew' ? '原卡到期日' : kind === 'other' ? '日期' : '开卡日期';
+  $('#dlab').textContent = kind === 'renew' ? '原卡到期日' : kind === 'other' ? '日期' : kind === 'refund' ? '退货日期' : '开卡日期';
+  $('#nlab').textContent = g ? '被送的人' : kind === 'refund' ? '顾客姓名' : '会员姓名';
   if (!dateTouched) $('#date').value = kind === 'renew' ? '' : iso(today);
 }
 document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { kind = b.dataset.v; dateTouched = false; paintKind(); save(); if (kind === 'other') $('#note').focus(); });
@@ -189,10 +197,12 @@ $('#f').onsubmit = async e => {
   const no = $('#no').value, phone = phoneOf();
   if (IS_OP && !STORE) return msg('请先选门店');
   if (!no) return msg('请先选工号');
-  if (!kind) return msg('请选新开卡 / 续卡 / 其它');
-  if (kind !== 'other' && pkg < 0) return msg('请选套餐');
+  if (!kind) return msg('请选新开365卡 / 365续卡 / 其它 / 退货');
+  const flat = kind === 'other' || kind === 'refund';
+  if (!flat && pkg < 0) return msg('请选套餐');
+  if (kind === 'refund' && !$('#name').value.trim()) { $('#name').focus(); return msg('退货请填顾客姓名'); }
   if (kind === 'other' && !$('#note').value.trim()) { $('#note').focus(); return msg('选了其它，请写备注'); }
-  const g = gift && kind !== 'other', gp = $('#gphone').value.replace(/\D/g, '');
+  const g = gift && !flat, gp = $('#gphone').value.replace(/\D/g, '');
   if (g && !$('#gname').value.trim()) { $('#gname').focus(); return msg('请填送的人姓名'); }
   if (g && !/^1\d{10}$/.test(gp)) { $('#gphone').focus(); return msg('送的人手机号要 11 位'); }
   if (g && !$('#name').value.trim()) { $('#name').focus(); return msg('请填被送的人姓名'); }
@@ -201,7 +211,7 @@ $('#f').onsubmit = async e => {
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: kind === 'other' ? '' : PKG_NAMES[pkg], qty: kind === 'other' ? null : qtyN(), note: kind === 'other' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
+    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: flat ? '' : PKG_NAMES[pkg], qty: flat ? null : qtyN(), note: flat ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
     $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; $('#qty').value = 1; $('#gname').value = ''; $('#gphone').value = ''; kind = ''; pkg = -1; gift = false; dateTouched = false; paintKind(); save();
     load();
@@ -218,7 +228,7 @@ async function load() {
     $('#cnt').textContent = subs.length || '';
     $('#items').innerHTML = subs.length ? subs.map(s => `<div class="it">
       <div class="m"><span class="n">${esc(s.name || '未填姓名')}</span><span class="p">${s.phone}</span>
-        <div class="d">${s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : KIND_NAME[s.kind] + (s.pkg ? ' · ' + esc(s.pkg) + (s.qty > 1 ? ' ×' + s.qty : '') : '') + (s.kind === 'renew' ? ' · 原卡到期 ' + ymd(s.sdate) : ' · ' + ymd(s.sdate)) + (s.giver_phone ? ' · ' + esc(s.giver_name || '') + ' 送的' : '')}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
+        <div class="d">${s.kind === 'refund' ? '退货 · ' + ymd(s.sdate) + (s.note ? ' · ' + esc(s.note) : '') : s.kind === 'other' ? '其它：' + esc(s.note || '') + ' · ' + ymd(s.sdate) : KIND_NAME[s.kind] + (s.pkg ? ' · ' + esc(s.pkg) + (s.qty > 1 ? ' ×' + s.qty : '') : '') + (s.kind === 'renew' ? ' · 原卡到期 ' + ymd(s.sdate) : ' · ' + ymd(s.sdate)) + (s.giver_phone ? ' · ' + esc(s.giver_name || '') + ' 送的' : '')}　提交于 ${new Date(s.created).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div></div>
       <span class="st ${s.status}">${s.status === 'done' ? '已处理' : '待处理'}</span>
       ${s.status === 'pending' ? `<button class="del" data-id="${s.id}" type="button">删除</button>` : ''}</div>`).join('')
       : '<div class="empty">还没有提交过</div>';
