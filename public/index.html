@@ -233,7 +233,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <a data-panel="log" data-op hidden><span class="ico"><svg viewBox="0 0 22 22" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="4" y="2.5" width="14" height="17"/><line x1="7" y1="7.5" x2="15" y2="7.5"/><line x1="7" y1="11" x2="15" y2="11"/><line x1="7" y1="14.5" x2="12" y2="14.5"/></svg></span><span>操作记录</span></a>
   </nav>
   <div class="foot">每人 42 张券<br>洗脸巾 12 张 · 代金券 30 张<br>另附 3 次护理导入</div>
-  <div class="foot me" data-op hidden><b>操作员</b><br><a class="lnk" href="/store" target="_blank" style="text-decoration:none">打开店员版</a>　<button class="lnk" id="outBtn" type="button">退出登录</button></div>
+  <div class="foot me" data-op hidden><b id="meName">操作员</b><br><a class="lnk" href="/store" target="_blank" style="text-decoration:none">打开店员版</a>　<button class="lnk" id="myPw" type="button">修改密码</button>　<button class="lnk" id="outBtn" type="button">退出登录</button></div>
 </aside>
 
 <div class="main">
@@ -365,7 +365,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div>
       <div class="eyebrow">赫眉 HYMN · 管理</div>
       <h2>账号与设备</h2>
-      <p>后台一个账号，每家店一个店员账号；每个账号最多 5 台设备同时登录，第 6 台登录时最久没用的那台自动退出</p>
+      <p>后台每人一个账号，每家店一个店员账号；每个账号最多 5 台设备同时登录，第 6 台登录时最久没用的那台自动退出</p>
     </div>
   </header>
   <section class="sec">
@@ -375,16 +375,24 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 </div>
 </div>
 
+  <!-- 自己改密码（2026-11-12 用户：支持自己修改） -->
+  <div class="emask" id="pwMask" hidden><form class="ebox" id="pwBox" autocomplete="off" style="width:400px">
+    <h4>修改我的密码</h4>
+    <div class="f"><label>原密码</label><input id="pwOld" type="password" autocomplete="current-password"></div>
+    <div class="f"><label>新密码</label><input id="pwNew" type="password" autocomplete="new-password" placeholder="至少 6 位"></div>
+    <div class="f"><label>再输一遍</label><input id="pwNew2" type="password" autocomplete="new-password"></div>
+    <div class="eact"><span class="err" id="pwErr"></span><button class="btn sm" id="pwCancel" type="button">取消</button><button class="btn sm go1" type="submit">保存</button></div>
+  </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121103"></script>
-<script src="report.js?v=202611121103"></script>
-<script src="xsel.js?v=202611121103"></script>
-<script src="datepick.js?v=202611121103"></script>
-<script src="api.js?v=202611121103"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121103"></script>
-<script src="xls.js?v=202611121103"></script>
-<script src="gen.js?v=202611121103"></script>
+<script src="stores.js?v=202611121110"></script>
+<script src="report.js?v=202611121110"></script>
+<script src="xsel.js?v=202611121110"></script>
+<script src="datepick.js?v=202611121110"></script>
+<script src="api.js?v=202611121110"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121110"></script>
+<script src="xls.js?v=202611121110"></script>
+<script src="gen.js?v=202611121110"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -764,7 +772,16 @@ async function markExported() {
 /* ---------- 账号与设备 ---------- */
 const RN = { op: '操作员', staff: '店员' };
 // 操作记录里的账号：staff:店名 → 店员 · 店名（2026-11-12 起每家店一个账号）
-const roleName = r => r && r.indexOf('staff:') === 0 ? '店员 · ' + r.slice(6) : (RN[r] || '—');
+const roleName = r => r && r.indexOf('staff:') === 0 ? '店员 · ' + r.slice(6) : r && r.indexOf('op:') === 0 ? '后台 · ' + r.slice(3) : (RN[r] || '—');
+$('#myPw').onclick = () => { ['#pwOld', '#pwNew', '#pwNew2'].forEach(k => $(k).value = ''); $('#pwErr').textContent = ''; $('#pwMask').hidden = false; $('#pwOld').focus(); };
+$('#pwCancel').onclick = () => { $('#pwMask').hidden = true; };
+$('#pwBox').onsubmit = async e => {
+  e.preventDefault();
+  if ($('#pwNew').value.length < 6) return $('#pwErr').textContent = '新密码至少 6 位';
+  if ($('#pwNew').value !== $('#pwNew2').value) return $('#pwErr').textContent = '两次输的不一样';
+  try { await api('/password/self', { old: $('#pwOld').value, password: $('#pwNew').value }); $('#pwMask').hidden = true; toast('密码改好了，你别的设备要重新登录'); }
+  catch (err) { $('#pwErr').textContent = err.message; }
+};
 let openDev = {}, pwOpen = 0, uData = null;
 async function loadUsers() {
   try { uData = await api('/accounts'); } catch (e) { $('#uTable').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
@@ -777,7 +794,7 @@ function paintUsers() {
   const byStore = {}; d.accounts.forEach(a => { if (a.role === 'staff') byStore[a.store] = a; });
   const row = a => {
     const last = a.devices.length ? Math.max(...a.devices.map(x => x.last_at || 0)) : 0;
-    return `<tr><td>${a.role === 'op' ? '后台（操作员）' : esc(a.store)}${a.locked ? '<span class="lk">输错锁定中</span>' : ''}</td><td style="color:var(--t3)">${a.role === 'op' ? '电脑上导出（你也用这个）' : esc(STORE_MGR[a.store] || '')}</td>
+    return `<tr><td>${a.role === 'op' ? esc(a.name || '后台') : esc(a.store)}${a.locked ? '<span class="lk">输错锁定中</span>' : ''}</td><td style="color:var(--t3)">${a.role === 'op' ? '后台' : esc(STORE_MGR[a.store] || '')}</td>
       <td><button class="dvn" data-u="${a.id}" type="button">${a.devices.length} / ${a.dev_limit}</button></td>
       <td class="num">${last ? tm(last) : '—'}</td>
       <td class="acts">${pwOpen === a.id
@@ -786,8 +803,8 @@ function paintUsers() {
       (openDev[a.id] ? `<tr class="devs"><td colspan="5">${a.devices.length ? a.devices.map(x => `<div class="dv"><span class="l">${esc(x.label)}${x.id === d.me ? '<span class="me">这台</span>' : ''}</span><span class="t">首次 ${tm(x.created)}　最近 ${tm(x.last_at)}</span>${x.id === d.me ? '' : `<button class="btn sm" data-kick="${x.id}" type="button">移出</button>`}</div>`).join('') : '<div class="dv"><span class="l" style="color:var(--t3)">没有设备登录</span></div>'}</td></tr>` : '');
   };
   let h = '';
-  const op = d.accounts.find(a => a.role === 'op');
-  if (op && (!kw || '后台操作员'.indexOf(kw) >= 0)) h += row(op);
+  const ops = d.accounts.filter(a => a.role === 'op').filter(a => !kw || ('后台' + (a.name || '')).indexOf(kw) >= 0);
+  if (ops.length) h += `<tr class="grp"><td colspan="5">后台 · ${ops.length} 人</td></tr>` + ops.map(row).join('');
   let nStore = 0;
   STORES.forEach(([m, list]) => {
     const hit = list.filter(st => byStore[st] && (!kw || st.indexOf(kw) >= 0 || m.indexOf(kw) >= 0));
@@ -795,7 +812,7 @@ function paintUsers() {
     nStore += hit.length;
     h += `<tr class="grp"><td colspan="5">${esc(m)} · ${hit.length} 家店</td></tr>` + hit.map(st => row(byStore[st])).join('');
   });
-  $('#uN').textContent = (op ? 1 : 0) + Object.keys(byStore).length;
+  $('#uN').textContent = d.accounts.length;
   $('#uTable').innerHTML = '<table><thead><tr><th>账号</th><th>谁用</th><th>登录设备</th><th>最近登录</th><th></th></tr></thead><tbody>' + (h || '<tr><td colspan="5" class="empty">没有对上的</td></tr>') + '</tbody></table>';
   document.querySelectorAll('.dvn').forEach(b => b.onclick = () => { openDev[b.dataset.u] = !openDev[b.dataset.u]; paintUsers(); });
   document.querySelectorAll('[data-pw]').forEach(b => b.onclick = () => { pwOpen = +b.dataset.pw; paintUsers(); const i = $('#pw_' + pwOpen); if (i) i.focus(); });
@@ -804,7 +821,7 @@ function paintUsers() {
     const id = +b.dataset.pwsave, pw = $('#pw_' + id).value.trim();
     if (pw.length < 6) return toast('密码至少 6 位');
     const a = d.accounts.find(x => x.id === id);
-    try { await api('/password', { uid: id, password: pw }); pwOpen = 0; loadUsers(); toast((a.role === 'op' ? '后台' : a.store) + ' 密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
+    try { await api('/password', { uid: id, password: pw }); pwOpen = 0; loadUsers(); toast((a.role === 'op' ? a.name : a.store) + ' 密码改好了，其他设备要重新登录'); } catch (e) { toast(e.message); }
   });
   document.querySelectorAll('[data-kick]').forEach(b => b.onclick = async () => {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定移出？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '移出'; }, 3000); return; }
@@ -910,6 +927,7 @@ if (location.protocol !== 'file:') {
   api('/me').then(r => {
     if (r.role !== 'op') { location.href = '/store.html'; return; }
     document.querySelectorAll('[data-op]').forEach(x => x.hidden = false); $('#subSec').hidden = false; loadSubs();
+    if (r.name) $('#meName').textContent = r.name;
     // 多台电脑同时开着：别的操作员导出 / 删了，这边 30 秒内自动跟上（页面在后台时不刷，切回来马上刷）
     setInterval(() => { if (!document.hidden) loadSubs(); }, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) loadSubs(); });

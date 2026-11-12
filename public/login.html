@@ -48,24 +48,25 @@ input:focus{border-color:var(--pink-deep)}
   <div class="sub2" id="opTag" hidden>后台</div>
   <!-- 店员登录就选门店（2026-11-12 用户），进去后不用再选 -->
   <div class="store" id="storeBox"><label>门店</label><select id="store"><option value="">选你的门店</option></select></div>
+  <div class="store" id="nameBox" hidden><label for="nm">姓名</label><input id="nm" autocomplete="username" maxlength="20"></div>
   <label for="pw">密码</label>
   <input type="password" id="pw" autocomplete="current-password" required>
   <button class="go" id="go" type="submit">登录</button>
   <div class="err" id="err"></div>
   <div class="hint">每个账号最多 5 台设备同时登录<br>超过时，最久没用的那台会自动退出</div>
 </form>
-<script src="fx.js?v=202611121103"></script>
+<script src="fx.js?v=202611121110"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121103"></script>
-<script src="xsel.js?v=202611121103"></script>
-<script src="api.js?v=202611121103"></script>
+<script src="stores.js?v=202611121110"></script>
+<script src="xsel.js?v=202611121110"></script>
+<script src="api.js?v=202611121110"></script>
 <script>
 const $ = s => document.querySelector(s);
 // 2026-11-12 用户：店员版看不到后台入口 → 登录页默认只有店员（门店 + 密码）；
 // 只有从后台地址（card.hemei.asia 根目录）被带过来的（?to= 不是店员页）才是后台登录
 const to = new URLSearchParams(location.search).get('to');
 let role = to && !/^\/store/.test(to) ? 'op' : 'staff';
-if (role === 'op') { $('#opTag').hidden = false; document.title = '登录 · 套餐销售登记 · 后台'; }
+if (role === 'op') { $('#opTag').hidden = false; $('#nameBox').hidden = false; $('#nm').value = localStorage.getItem('c365_op_name') || ''; document.title = '登录 · 套餐销售登记 · 后台'; }
 $('#store').insertAdjacentHTML('beforeend', STORES.map(([m, list]) => `<optgroup label="${m}">${list.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join(''));
 const sv = localStorage.getItem('c365_login_store'); if (sv && STORE_MGR[sv]) $('#store').value = sv;
 XSel.attach($('#store'), { placeholder: true });
@@ -74,9 +75,11 @@ $('#storeBox').hidden = role !== 'staff';
 $('#f').onsubmit = async e => {
   e.preventDefault();
   if (role === 'staff' && !$('#store').value) { $('#err').textContent = '请先选门店'; return; }
+  if (role === 'op' && !$('#nm').value.trim()) { $('#err').textContent = '请填姓名'; return; }
   $('#go').disabled = true; $('#err').textContent = '';
   try {
-    const r = await api('/login', { role, password: $('#pw').value, store: role === 'staff' ? $('#store').value : '' });
+    const r = await api('/login', { role, password: $('#pw').value, store: role === 'staff' ? $('#store').value : '', name: role === 'op' ? $('#nm').value.trim() : '' });
+    if (role === 'op') localStorage.setItem('c365_op_name', $('#nm').value.trim());
     location.href = r.role === 'staff' ? '/store.html' : (to && !/^\/store/.test(to) ? to : '/');
   } catch (err) { $('#err').textContent = err.message; $('#go').disabled = false; }
 };

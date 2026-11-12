@@ -46,8 +46,9 @@ function deviceLabel(ua) {
 }
 const ROLE_NAME = { op: '操作员', staff: '店员' };
 // 2026-11-12 起每家店一个店员账号（users.store），各自最多 5 台设备。操作记录的 role 写成 staff:店名，看得出是哪家店
-const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role;
-const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : ROLE_NAME[u.role] || u.role;
+// 后台也分人（2026-11-12 用户：何俊、金晓锋、叶金虎、毛毛各一个，users.name），操作记录写 op:姓名
+const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role === 'op' && u.name ? 'op:' + u.name : u.role;
+const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : u.name ? '后台 ' + u.name : ROLE_NAME[u.role] || u.role;
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
 const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它' };   // 2026-11-12 用户改的叫法
@@ -59,7 +60,7 @@ const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; S
 async function currentUser(req, db) {
   const t = cookie(req, 'c365_s');
   if (!t) return null;
-  const u = await db.prepare('SELECT u.id, u.role, u.store, s.did FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
+  const u = await db.prepare('SELECT u.id, u.role, u.store, u.name, s.did FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
     .bind(await sha256(t), Date.now()).first();
   if (u) await db.prepare('UPDATE devices SET last_at = ? WHERE id = ?').bind(Date.now(), u.did).run();
   return u;
@@ -124,12 +125,13 @@ async function handle(req, env) {
   if (p === '/login' && req.method === 'POST') {
     const b = await body(req);
     // 店员：每家店一个账号，按登录页选的门店找账号（2026-11-12 用户：43 家店分开账号，每家最多 5 台设备）
-    const role = str(b.role, 10), store = role === 'staff' ? str(b.store, 30) : null;
+    const role = str(b.role, 10), store = role === 'staff' ? str(b.store, 30) : null, name = role === 'op' ? str(b.name, 20) : null;
     if (role === 'staff' && !store) throw bad('请先选门店');
+    if (role === 'op' && !name) throw bad('请填姓名');
     const u = role === 'staff' ? await db.prepare("SELECT * FROM users WHERE role = 'staff' AND store = ?").bind(store).first()
-      : await db.prepare('SELECT * FROM users WHERE role = ? AND store IS NULL').bind(role).first();
+      : await db.prepare("SELECT * FROM users WHERE role = 'op' AND name = ?").bind(name).first();
     const generic = new HttpError(401, '密码不对');
-    if (!u) throw role === 'staff' ? bad('这家店还没有账号，请联系总部') : generic;
+    if (!u) throw role === 'staff' ? bad('这家店还没有账号，请联系总部') : new HttpError(401, '没有这个后台账号');
     if (u.lock_until > now) await audit(req, db, who(u), 'login_locked', '锁定中还在尝试');
     if (u.lock_until > now) throw new HttpError(429, '输错太多次，' + Math.ceil((u.lock_until - now) / 60000) + ' 分钟后再试');
     if (!sameStr(await pbkdf2(String(b.password || ''), u.salt), u.hash)) {
@@ -151,7 +153,7 @@ async function handle(req, env) {
   if (p === '/logout' && req.method === 'POST') {
     const t = cookie(req, 'c365_s');
     if (t) {
-      const w = await db.prepare('SELECT u.role, u.store FROM sessions s JOIN users u ON u.id = s.uid WHERE s.th = ?').bind(await sha256(t)).first();
+      const w = await db.prepare('SELECT u.role, u.store, u.name FROM sessions s JOIN users u ON u.id = s.uid WHERE s.th = ?').bind(await sha256(t)).first();
       await db.prepare('DELETE FROM sessions WHERE th = ?').bind(await sha256(t)).run();
       if (w) await audit(req, db, who(w), 'logout', null);
     }
@@ -163,7 +165,21 @@ async function handle(req, env) {
   const isOp = u.role === 'op';
   const needOp = () => { if (!isOp) throw new HttpError(403, '没有权限'); };
 
-  if (p === '/me') return json({ role: u.role, store: u.store || null });
+  if (p === '/me') return json({ role: u.role, store: u.store || null, name: u.name || null });
+  // 自己改自己的密码（2026-11-12 用户：支持自己修改）：要输旧密码；改完自己这台不掉线，别的设备要重登
+  if (p === '/password/self' && req.method === 'POST') {
+    const b = await body(req), pass = String(b.password || '');
+    const me = await db.prepare('SELECT * FROM users WHERE id = ?').bind(u.id).first();
+    if (!sameStr(await pbkdf2(String(b.old || ''), me.salt), me.hash)) throw bad('原密码不对');
+    if (pass.length < 6) throw bad('新密码至少 6 位');
+    const salt = randHex(16), keep = await sha256(cookie(req, 'c365_s'));
+    await db.batch([
+      db.prepare('UPDATE users SET salt = ?, hash = ?, fails = 0, lock_until = 0 WHERE id = ?').bind(salt, await pbkdf2(pass, salt), u.id),
+      db.prepare('DELETE FROM sessions WHERE uid = ? AND th <> ?').bind(u.id, keep)
+    ]);
+    await audit(req, db, who(u), 'password', acctName(u) + ' 自己改了密码');
+    return json({ ok: true });
+  }
   // 工号下拉：店员看登录时选的那家店的员工；操作员可以 ?store= 看任意店
   if (p === '/staff' && req.method === 'GET') {
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
@@ -319,16 +335,16 @@ async function handle(req, env) {
   // 账号与设备页：两个账号 + 各自登录的设备
   if (p === '/accounts' && req.method === 'GET') {
     needOp();
-    const us = (await db.prepare('SELECT id, role, store, dev_limit, lock_until FROM users ORDER BY id').all()).results;
+    const us = (await db.prepare('SELECT id, role, store, name, dev_limit, lock_until FROM users ORDER BY id').all()).results;
     const ds = (await db.prepare('SELECT id, uid, label, created, last_at FROM devices ORDER BY last_at DESC').all()).results;
-    return json({ me: u.did, accounts: us.map((x) => ({ id: x.id, role: x.role, store: x.store, dev_limit: x.dev_limit, locked: x.lock_until > now, devices: ds.filter((d) => d.uid === x.id) })) });
+    return json({ me: u.did, accounts: us.map((x) => ({ id: x.id, role: x.role, store: x.store, name: x.name, dev_limit: x.dev_limit, locked: x.lock_until > now, devices: ds.filter((d) => d.uid === x.id) })) });
   }
   // 手动移出一台设备（连同它的会话，马上下线）；不能移出自己这台
   if (p === '/devices/del' && req.method === 'POST') {
     needOp();
     const id = Number((await body(req)).id) || 0;
     if (id === u.did) throw bad('不能移出你正在用的这台');
-    const d = await db.prepare('SELECT d.label, u.role, u.store FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
+    const d = await db.prepare('SELECT d.label, u.role, u.store, u.name FROM devices d JOIN users u ON u.id = d.uid WHERE d.id = ?').bind(id).first();
     if (!d) throw bad('这台设备已经不在了');
     await db.batch([db.prepare('DELETE FROM sessions WHERE did = ?').bind(id), db.prepare('DELETE FROM devices WHERE id = ?').bind(id)]);
     await audit(req, db, who(u), 'device_remove', acctName(d) + ' ' + d.label);
@@ -338,7 +354,7 @@ async function handle(req, env) {
     needOp();
     const b = await body(req), pass = String(b.password || '');
     if (pass.length < 6) throw bad('密码至少 6 位');
-    const t = await db.prepare('SELECT id, role, store FROM users WHERE id = ?').bind(Number(b.uid) || 0).first();
+    const t = await db.prepare('SELECT id, role, store, name FROM users WHERE id = ?').bind(Number(b.uid) || 0).first();
     if (!t) throw bad('没有这个账号');
     const salt = randHex(16);
     const keep = t.id === u.id ? await sha256(cookie(req, 'c365_s')) : '';

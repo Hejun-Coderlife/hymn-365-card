@@ -7,13 +7,14 @@ CREATE TABLE IF NOT EXISTS users (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   role       TEXT NOT NULL,                 -- op / staff
   store      TEXT,                          -- 店员账号是哪家店；op 为空
+  name       TEXT,                          -- 后台账号是谁（2026-11-12 起后台分人：何俊 / 金晓锋 / 叶金虎 / 毛毛）
   salt       TEXT NOT NULL,
   hash       TEXT NOT NULL,
   dev_limit  INTEGER NOT NULL DEFAULT 5,    -- 每个账号最多 5 台设备，第 6 台登录自动挤掉最久没用的
   fails      INTEGER NOT NULL DEFAULT 0,
   lock_until INTEGER NOT NULL DEFAULT 0
 );
-CREATE UNIQUE INDEX IF NOT EXISTS users_role_store ON users(role, COALESCE(store, ''));
+CREATE UNIQUE INDEX IF NOT EXISTS users_uniq ON users(role, COALESCE(store, ''), COALESCE(name, ''));
 
 CREATE TABLE IF NOT EXISTS sessions (
   th      TEXT PRIMARY KEY,   -- token 的 SHA-256
