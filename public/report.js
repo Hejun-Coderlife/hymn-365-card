@@ -75,7 +75,7 @@
     const pw = g.measureText(String(D.total)).width; g.font = '15px ' + SANS; g.fillText('单', PAD + pw + 6, y);
     g.font = '11px ' + SANS; g.fillStyle = C.t3; g.fillText('总单数', PAD, y + 22);
     const colW = (W - PAD * 2) / 4;   // 2026-11-12 加「其它」
-    [[String(D.nw), '新开卡'], [String(D.rn), '续卡'], [String(D.ot), '其它']].forEach((s, i) => {
+    [[String(D.nw), '新开365卡'], [String(D.rn), '365续卡'], [String(D.ot), '其它']].forEach((s, i) => {
       const x = PAD + colW * (i + 1) + 10;
       g.fillStyle = C.line; g.fillRect(x - 12, y - 44, 1, 70);
       g.fillStyle = C.ink; g.font = '30px ' + NUM; g.fillText(s[0], x, y);

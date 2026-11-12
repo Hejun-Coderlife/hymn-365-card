@@ -254,12 +254,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
         <h4 id="eTitle">修改提交</h4>
         <div class="f"><label>门店</label><select id="eStore"></select></div>
         <div class="f"><label>工号</label><select id="eNo"></select></div>
-        <div class="f"><label>办卡</label><div class="chips" id="eKind"><button type="button" data-v="new">新开卡</button><button type="button" data-v="renew">续卡</button><button type="button" data-v="other">其它</button></div></div>
+        <div class="f"><label>办卡</label><div class="chips" id="eKind"><button type="button" data-v="new">新开365卡</button><button type="button" data-v="renew">365续卡</button><button type="button" data-v="other">其它</button></div></div>
         <div class="f" id="ePkRow"><label>套餐</label><div class="chips" id="ePk"></div></div>
         <div class="f" id="eNoteRow"><label>备注</label><textarea id="eNote" maxlength="200"></textarea></div>
-        <div class="f"><label>姓名</label><input id="eName" maxlength="30"></div>
-        <div class="f"><label>手机号</label><input id="ePhone" maxlength="13"></div>
-        <div class="f"><label>日期</label><input id="eDate" type="date"></div>
+        <div class="f" id="eGiftRow"><label>给谁办</label><div class="chips" id="eGift"><button type="button" data-v="0">自己</button><button type="button" data-v="1">送朋友</button></div></div>
+        <div class="f" id="eGnRow"><label>送的人</label><input id="eGname" maxlength="30" placeholder="姓名"></div>
+        <div class="f" id="eGpRow"><label>送的人手机</label><input id="eGphone" maxlength="13"></div>
+        <div class="f"><label id="eNlab">姓名</label><input id="eName" maxlength="30"></div>
+        <div class="f"><label id="eplab">手机号</label><input id="ePhone" maxlength="13"></div>
+        <div class="f"><label id="eDlab">日期</label><input id="eDate" type="date"></div>
         <div class="eact"><span class="err" id="eErr"></span><button class="btn sm" id="eCancel" type="button">取消</button><button class="btn sm go1" type="submit">保存修改</button></div>
         <div class="hist" id="eHist"></div>
       </form></div>
@@ -378,15 +381,15 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611120943"></script>
-<script src="report.js?v=202611120943"></script>
-<script src="xsel.js?v=202611120943"></script>
-<script src="datepick.js?v=202611120943"></script>
-<script src="api.js?v=202611120943"></script>
-<script src="vendor/xlsx.full.min.js?v=202611120943"></script>
-<script src="vendor/jszip.min.js?v=202611120943"></script>
-<script src="xls.js?v=202611120943"></script>
-<script src="gen.js?v=202611120943"></script>
+<script src="stores.js?v=202611120956"></script>
+<script src="report.js?v=202611120956"></script>
+<script src="xsel.js?v=202611120956"></script>
+<script src="datepick.js?v=202611120956"></script>
+<script src="api.js?v=202611120956"></script>
+<script src="vendor/xlsx.full.min.js?v=202611120956"></script>
+<script src="vendor/jszip.min.js?v=202611120956"></script>
+<script src="xls.js?v=202611120956"></script>
+<script src="gen.js?v=202611120956"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -682,7 +685,7 @@ function paintSubs() {
       // 「其它」不是 365 金卡，不能放进名单导出；勾不了，处理完点「已处理」
       return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck">${oth ? '' : `<input type="checkbox" class="ck1" value="${x.id}" ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !inList.has(x.phone)) ? 'checked' : ''}>`}</td>`) +
       `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
-      `<td class="kd">${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(oth ? (x.note || '') : (x.pkg || '未选套餐'))}</small></td><td class="num">${sdYmd(x.sdate)}</td><td>` +
+      `<td class="kd">${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(oth ? (x.note || '') : (x.pkg || '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
       (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td><td class="acts">' +
@@ -706,14 +709,20 @@ function paintSubs() {
   document.querySelectorAll('.undo').forEach(b => b.onclick = async () => { try { await api('/sub/undo', { id: +b.dataset.id }); loadSubs(); } catch (e) { toast(e.message); } });
 }
 /* 修改店员提交：改完服务器把旧内容存进 sub_edits，操作记录记「改了什么」 */
-let eCur = null, eKind = '', ePk = -1;
+let eCur = null, eKind = '', ePk = -1, eGift = false;
 $('#ePk').innerHTML = PKG_NAMES.map((n, i) => `<button type="button" data-i="${i}">${n}</button>`).join('');
 $('#eStore').innerHTML = '<option value="">选门店</option>' + STORES.map(([m, l]) => `<optgroup label="${m}">${l.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join('');
 function ePaint() {
   document.querySelectorAll('#eKind button').forEach(b => b.classList.toggle('on', b.dataset.v === eKind));
   document.querySelectorAll('#ePk button').forEach(b => b.classList.toggle('on', +b.dataset.i === ePk));
-  $('#ePkRow').hidden = eKind === 'other'; $('#eNoteRow').hidden = eKind !== 'other';
+  $('#ePkRow').hidden = $('#eGiftRow').hidden = eKind === 'other'; $('#eNoteRow').hidden = eKind !== 'other';
+  const g = eGift && eKind !== 'other';
+  document.querySelectorAll('#eGift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === eGift));
+  $('#eGnRow').hidden = $('#eGpRow').hidden = !g;
+  $('#eNlab').textContent = g ? '被送的人' : '姓名'; $('#eplab').textContent = g ? '被送人手机' : '手机号';
+  $('#eDlab').textContent = eKind === 'renew' ? '原卡到期日' : eKind === 'new' ? '开卡日期' : '日期';
 }
+document.querySelectorAll('#eGift button').forEach(b => b.onclick = () => { eGift = b.dataset.v === '1'; ePaint(); });
 document.querySelectorAll('#eKind button').forEach(b => b.onclick = () => { eKind = b.dataset.v; ePaint(); });
 document.querySelectorAll('#ePk button').forEach(b => b.onclick = () => { ePk = +b.dataset.i; ePaint(); });
 async function eFillNo(keep) {
@@ -726,7 +735,8 @@ async function eFillNo(keep) {
 $('#eStore').onchange = () => eFillNo('');
 async function openEdit(x) {
   if (!x) return;
-  eCur = x; eKind = x.kind; ePk = PKG_NAMES.indexOf(x.pkg || '');
+  eCur = x; eKind = x.kind; ePk = PKG_NAMES.indexOf(x.pkg || ''); eGift = !!x.giver_phone;
+  $('#eGname').value = x.giver_name || ''; $('#eGphone').value = x.giver_phone || '';
   $('#eTitle').textContent = `修改提交 #${x.id}`;
   $('#eStore').value = x.store || ''; $('#eName').value = x.name || ''; $('#ePhone').value = x.phone; $('#eDate').value = x.sdate; $('#eNote').value = x.note || '';
   $('#eErr').textContent = ''; ePaint(); $('#eMask').hidden = false;
@@ -734,7 +744,7 @@ async function openEdit(x) {
   $('#eHist').innerHTML = '';
   if (x.edit_n) try {
     const { edits } = await api('/sub/edits?id=' + x.id);
-    const F = { store: '门店', staff_no: '工号', kind: '办卡', pkg: '套餐', note: '备注', name: '姓名', phone: '手机号', sdate: '日期' };
+    const F = { store: '门店', staff_no: '工号', kind: '办卡', pkg: '套餐', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', name: '姓名', phone: '手机号', sdate: '日期' };
     const sh = (k, v) => k === 'kind' ? (KIND_NAME[v] || v) : (v == null || v === '' ? '空' : v);
     $('#eHist').innerHTML = '<b>修改记录</b>' + edits.map(e => { const a = JSON.parse(e.before || '{}'), z = JSON.parse(e.after || '{}');
       return `<div><span>${tm(e.at)} · ${esc(e.dev || '')}</span>${Object.keys(F).filter(k => (a[k] || '') !== (z[k] || '')).map(k => esc(F[k] + ' ' + sh(k, a[k]) + ' → ' + sh(k, z[k]))).join('；')}</div>`; }).join('');
@@ -748,7 +758,7 @@ $('#eBox').onsubmit = async e => {
   if (eKind === 'other' && !$('#eNote').value.trim()) return $('#eErr').textContent = '选了其它，请写备注';
   try {
     const r = await api('/sub/edit', { id: eCur.id, store: $('#eStore').value, staff_no: $('#eNo').value, kind: eKind, pkg: eKind === 'other' ? '' : PKG_NAMES[ePk],
-      note: eKind === 'other' ? $('#eNote').value.trim() : '', name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
+      note: eKind === 'other' ? $('#eNote').value.trim() : '', gift: eGift && eKind !== 'other', giver_name: $('#eGname').value.trim(), giver_phone: $('#eGphone').value, name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
     $('#eMask').hidden = true; toast(r.same ? '没有改动' : '已修改，改动记在操作记录里');
     // 已经载入名单的，名单里那一行跟着换
     if (!r.same && loaded[eCur.phone]) {
@@ -907,7 +917,7 @@ $('#rPng').onclick = () => { if (!rCanvas) return; const a = document.createElem
 $('#rXls').onclick = () => {
   if (!rData) return;
   const st = rData.by === 'store';
-  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '单数', '新开卡', '续卡', '其它']]
+  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '单数', '新开365卡', '365续卡', '其它']]
     .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn, o.ot]))
     .concat([[null, '合计', null, rData.total, rData.nw, rData.rn, rData.ot]]);
   download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls');

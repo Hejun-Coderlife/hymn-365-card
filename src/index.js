@@ -47,8 +47,9 @@ function deviceLabel(ua) {
 const ROLE_NAME = { op: '操作员', staff: '店员' };
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
-const KIND_NAME = { new: '新开卡', renew: '续卡', other: '其它' };
-const subDesc = (s) => s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.kind === 'renew' ? ' · 从 ' : ' · ') + s.sdate;
+const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它' };   // 2026-11-12 用户改的叫法
+const subDesc = (s) => s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
+  (s.giver_phone ? ' · 送朋友：' + (s.giver_name || '') + ' ' + s.giver_phone + ' 送的' : '');
 
 /* ---- 会话 / 设备 ---- */
 const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
@@ -91,14 +92,24 @@ function checkSub(b) {
   let pkg = null, note = null;
   if (kind === 'other') { note = str(b.note, 200).replace(/[\r\n\t]+/g, ' '); if (!note) throw bad('选了其它，请写备注'); }
   else { pkg = str(b.pkg, 40); if (PKGS.indexOf(pkg) < 0) throw bad('请选套餐'); }
+  // 送朋友（2026-11-12 用户）：送的人、被送的人都要填名字和电话；卡办在被送的人（phone）名下
+  let giver_name = null, giver_phone = null;
+  if (b.gift && kind !== 'other') {
+    giver_name = str(b.giver_name, 30).replace(/[\r\n\t]/g, ' ');
+    giver_phone = str(b.giver_phone, 20).replace(/\D/g, '');
+    if (!giver_name) throw bad('请填送的人姓名');
+    if (!/^1\d{10}$/.test(giver_phone)) throw bad('送的人手机号要 11 位');
+    if (!str(b.name, 30)) throw bad('请填被送的人姓名');
+    if (giver_phone === phone) throw bad('送的人和被送的人手机号一样');
+  }
   const staff_no = str(b.staff_no, 20);
   if (!staff_no) throw bad('请选工号');
   const name = str(b.name, 30).replace(/[\r\n\t]/g, ' ');
   const store = str(b.store, 30);
   if (!store) throw bad('请选门店');
-  return { name, phone, sdate, kind, pkg, note, staff_no, store };
+  return { name, phone, sdate, kind, pkg, note, giver_name, giver_phone, staff_no, store };
 }
-const SUB_COLS = 'id, name, phone, sdate, kind, pkg, note, staff_no, store, created, status, done_at, del_at, del_by, edit_n, edit_at';
+const SUB_COLS = 'id, name, phone, sdate, kind, pkg, note, giver_name, giver_phone, staff_no, store, created, status, done_at, del_at, del_by, edit_n, edit_at';
 
 async function handle(req, env) {
   const url = new URL(req.url), p = url.pathname.replace(/^\/api/, ''), db = env.DB, now = Date.now();
@@ -165,8 +176,8 @@ async function handle(req, env) {
     const s = checkSub(b0);
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending'").bind(s.phone).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
-    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, note, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.staff_no, s.store, now, u.did).run();
+    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, note, giver_name, giver_phone, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.giver_name, s.giver_phone, s.staff_no, s.store, now, u.did).run();
     await audit(req, db, u.role, 'sub_add', '#' + r.meta.last_row_id + ' ' + s.store + ' 工号 ' + s.staff_no + '：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + subDesc(s));
     return json({ ok: true, id: r.meta.last_row_id });
   }
@@ -178,7 +189,7 @@ async function handle(req, env) {
       const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND store = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, u.store || '', now - 30 * DAY).all();
       return json({ subs: r.results });
     }
-    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
+    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.note, s.giver_name, s.giver_phone, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
     pend.results.forEach((x) => { if (!x.lock_did || x.lock_at < now - LOCK_MS) { x.lock_did = null; x.lock_dev = null; } });
     const done = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status <> 'pending' AND COALESCE(done_at, del_at) > ? ORDER BY COALESCE(done_at, del_at) DESC LIMIT 300").bind(now - 30 * DAY).all();
     return json({ pending: pend.results, recent: done.results, me: u.did });
@@ -240,7 +251,7 @@ async function handle(req, env) {
     if (!old) throw bad('这条提交不在了');
     if (old.status === 'del') throw bad('删掉的不能改');
     const n = checkSub(b);
-    const F = { name: '姓名', phone: '手机号', sdate: '日期', kind: '办卡', pkg: '套餐', note: '备注', staff_no: '工号', store: '门店' };
+    const F = { name: '姓名', phone: '手机号', sdate: '日期', kind: '办卡', pkg: '套餐', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', staff_no: '工号', store: '门店' };
     const show = (k, v) => k === 'kind' ? KIND_NAME[v] || v : (v == null || v === '' ? '空' : v);
     const diff = Object.keys(F).filter((k) => (old[k] || '') !== (n[k] || '')).map((k) => F[k] + ' ' + show(k, old[k]) + ' → ' + show(k, n[k]));
     if (!diff.length) return json({ ok: true, same: true });
@@ -248,8 +259,8 @@ async function handle(req, env) {
     await db.batch([
       db.prepare('INSERT INTO sub_edits (sid, at, before, after, dev) VALUES (?, ?, ?, ?, ?)').bind(old.id, now,
         JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, old[k]]))), JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, n[k]]))), deviceLabel(req.headers.get('User-Agent'))),
-      db.prepare('UPDATE subs SET name = ?, phone = ?, sdate = ?, kind = ?, pkg = ?, note = ?, staff_no = ?, store = ?, edit_n = COALESCE(edit_n, 0) + 1, edit_at = ? WHERE id = ?')
-        .bind(n.name, n.phone, n.sdate, n.kind, n.pkg, n.note, n.staff_no, n.store, now, old.id)
+      db.prepare('UPDATE subs SET name = ?, phone = ?, sdate = ?, kind = ?, pkg = ?, note = ?, giver_name = ?, giver_phone = ?, staff_no = ?, store = ?, edit_n = COALESCE(edit_n, 0) + 1, edit_at = ? WHERE id = ?')
+        .bind(n.name, n.phone, n.sdate, n.kind, n.pkg, n.note, n.giver_name, n.giver_phone, n.staff_no, n.store, now, old.id)
     ]);
     await audit(req, db, u.role, 'sub_edit', '#' + old.id + ' ' + (old.name || '') + ' ' + old.phone + ' 改了：' + diff.join('；'));
     return json({ ok: true });
