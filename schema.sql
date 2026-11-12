@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   role       TEXT NOT NULL,                 -- op / staff
   store      TEXT,                          -- 店员账号是哪家店；op 为空
+  sort       INTEGER,                       -- 后台名字的排序（登录下拉、账号页），小的在前
   name       TEXT,                          -- 后台账号是谁（2026-11-12 起后台分人：何俊 / 金晓锋 / 叶金虎 / 毛毛）
   salt       TEXT NOT NULL,
   hash       TEXT NOT NULL,

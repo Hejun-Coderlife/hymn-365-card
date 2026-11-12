@@ -156,7 +156,7 @@ async function handle(req, env) {
   }
   // 后台登录页直接选名字（2026-11-12 用户）：只给姓名，不用登录
   if (p === '/opnames' && req.method === 'GET') {
-    const r = await db.prepare("SELECT name FROM users WHERE role = 'op' AND name IS NOT NULL ORDER BY id").all();
+    const r = await db.prepare("SELECT name FROM users WHERE role = 'op' AND name IS NOT NULL ORDER BY COALESCE(sort, 99), id").all();
     return json({ names: r.results.map((x) => x.name) });
   }
   if (p === '/logout' && req.method === 'POST') {
@@ -345,7 +345,7 @@ async function handle(req, env) {
   // 账号与设备页：两个账号 + 各自登录的设备
   if (p === '/accounts' && req.method === 'GET') {
     needOp();
-    const us = (await db.prepare('SELECT id, role, store, name, dev_limit, lock_until FROM users ORDER BY id').all()).results;
+    const us = (await db.prepare('SELECT id, role, store, name, dev_limit, lock_until FROM users ORDER BY COALESCE(sort, 99), id').all()).results;
     const ds = (await db.prepare('SELECT id, uid, label, created, last_at FROM devices ORDER BY last_at DESC').all()).results;
     return json({ me: u.did, accounts: us.map((x) => ({ id: x.id, role: x.role, store: x.store, name: x.name, dev_limit: x.dev_limit, locked: x.lock_until > now, devices: ds.filter((d) => d.uid === x.id) })) });
   }
