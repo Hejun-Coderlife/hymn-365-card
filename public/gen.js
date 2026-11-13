@@ -77,11 +77,12 @@
       .concat(rows.map(r => [r.act, r.no, r.val, r.obj || null, r.objNo || null, Number(r.phone), d(r.s), d(r.e),
         r.rule, r.scene, null, null, r.min, r.rule]));
     // F 列门店（2026-11-13 用户）：店员提交载入的带门店，手打的名单没有就空着
-    const s2 = [['会员编号', '卡项编号', '项目编号', '购买金额', '数量', '门店']]
-      .concat([].concat(...people.map(p => Array.from({ length: p.qty || 1 }, () => [String(p.phone), '1071', '1071', 0, 3, p.store || null]))));   // 每份一行
+    // G 列开卡日期（2026-11-13 用户）：店员登记页填的那个日期（续卡就是原卡到期日）；手打名单没写日期 = 当天
+    const s2 = [['会员编号', '卡项编号', '项目编号', '购买金额', '数量', '门店', '开卡日期']]
+      .concat([].concat(...people.map(p => Array.from({ length: p.qty || 1 }, () => [String(p.phone), '1071', '1071', 0, 3, p.store || null, d(p.date || opt.date)]))));   // 每份一行
     return XLS.write(XLSX.CFB, [
       { name: '代金券', widths: [18, 22, 9, 12, 15, 14, 12, 12, 10, 12, 15, 15, 10, 10], rows: s1 },
-      { name: '3次护理导入', widths: [14, 10, 10, 10, 8, 16], rows: s2 },
+      { name: '3次护理导入', widths: [14, 10, 10, 10, 8, 16, 12], rows: s2 },
     ]);
   }
 

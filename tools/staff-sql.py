@@ -12,5 +12,6 @@ for r in range(1, sh.nrows):
     no = str(v[ci]).strip()
     if no.endswith('.0'): no = no[:-2]
     if not no or str(v[cz]).strip() != '在职' or not str(v[cs]).strip(): continue
+    if '临时' in str(v[cn]) or '工号' in str(v[cn]): continue   # 2026-11-13 用户：去除所有临时工号
     vals.append('(%s,%s,%s)' % (q(no), q(v[cn]), q(v[cs])))
 print('DELETE FROM staff; INSERT INTO staff (no, name, store) VALUES ' + ','.join(vals) + ';')

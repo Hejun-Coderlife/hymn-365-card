@@ -37,7 +37,14 @@
     if (F.by === 'store' && !nos.length) STORES.forEach(([m, list]) => list.forEach(st => { if (inScope(st)) add(st, { name: st, sub: m }); }));
     hit.forEach(x => {
       const st = x.store || '未填门店';
-      const o = F.by === 'store' ? add(st, { name: st, sub: STORE_MGR[st] || '' }) : add(x.staff_no + '|' + st, { name: x.staff_name || '工号 ' + x.staff_no, no: x.staff_no, sub: st })   // 2026-11-13 用户：按店员排显示名字不显示工号;
+      let o;
+      if (F.by === 'store') o = add(st, { name: st, sub: STORE_MGR[st] || '' });
+      else {   // 2026-11-13 用户：按店员排显示名字；同一个人在不同店（或不同工号）按名字并成一行，门店/工号都列出来
+        o = add(x.staff_name ? 'n|' + x.staff_name : 'no|' + x.staff_no, { name: x.staff_name || '工号 ' + x.staff_no, nos: [], sts: [] });
+        if (o.nos.indexOf(x.staff_no) < 0) o.nos.push(x.staff_no);
+        if (o.sts.indexOf(st) < 0) o.sts.push(st);
+        o.no = o.nos.join('、'); o.sub = o.sts.join('、');
+      }
       const w = x.kind === 'other' ? 1 : (x.qty || 1);   // 2026-11-12 起按套餐份数算（一单可以买几份）
       o.n += w; x.kind === 'renew' ? o.rn += w : x.kind === 'other' ? o.ot += w : o.nw += w;
     });
