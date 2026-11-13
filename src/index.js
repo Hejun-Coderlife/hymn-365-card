@@ -64,8 +64,8 @@ async function storeStaff(db, store) {
 }
 // 所有门店的员工（只要还在门店名单里的店，去掉的店比如江北万达不出现），按区域经理 → 门店 → 工号排
 async function allStaff(db) {
-  // 「总部」放最后（2026-11-13 用户：其它人员里加徐萍 777），不属于任何门店，只在「其它」里出现
-  const order = [].concat(...Object.values(MGR_STORES), ['总部']);
+  // 「后台」组放最后（2026-11-13 用户：其它人员里加徐萍 777；组名不要叫总部），不属于任何门店，只在「其它」里出现
+  const order = [].concat(...Object.values(MGR_STORES), ['后台']);
   const r = (await db.prepare('SELECT no, name, store FROM staff ORDER BY no').all()).results.filter((x) => order.indexOf(x.store) >= 0);
   return r.sort((a, b) => order.indexOf(a.store) - order.indexOf(b.store) || (a.no < b.no ? -1 : 1));
 }
