@@ -392,14 +392,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611131340"></script>
-<script src="report.js?v=202611131340"></script>
-<script src="xsel.js?v=202611131340"></script>
-<script src="datepick.js?v=202611131340"></script>
-<script src="api.js?v=202611131340"></script>
-<script src="vendor/xlsx.full.min.js?v=202611131340"></script>
-<script src="xls.js?v=202611131340"></script>
-<script src="gen.js?v=202611131340"></script>
+<script src="stores.js?v=202611131407"></script>
+<script src="report.js?v=202611131407"></script>
+<script src="xsel.js?v=202611131407"></script>
+<script src="datepick.js?v=202611131407"></script>
+<script src="api.js?v=202611131407"></script>
+<script src="vendor/xlsx.full.min.js?v=202611131407"></script>
+<script src="xls.js?v=202611131407"></script>
+<script src="gen.js?v=202611131407"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -713,8 +713,12 @@ document.querySelectorAll('#ePk button').forEach(b => b.onclick = () => { ePk = 
 async function eFillNo(keep) {
   let st = [];
   try { st = $('#eStore').value ? (await api('/staff?store=' + encodeURIComponent($('#eStore').value))).staff : []; } catch (e) {}
-  if (keep && !st.some(x => x.no === keep)) st.unshift({ no: keep, name: '（不在这家店的员工名单里）' });
-  $('#eNo').innerHTML = '<option value="">选工号</option>' + st.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('');
+  // 本店的人在前，后面「其它门店」能选所有人、能搜（2026-11-13 跟店员版工号的「其它」一致）
+  let all = [];
+  try { all = (await api('/staff?all=1')).staff.filter(x => !st.some(y => y.no === x.no)); } catch (e) {}
+  if (keep && !st.some(x => x.no === keep) && !all.some(x => x.no === keep)) st.unshift({ no: keep, name: '（不在员工名单里）' });
+  const opt = x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}${x.store ? '　' + esc(x.store) : ''}</option>`;
+  $('#eNo').innerHTML = '<option value="">选工号</option><optgroup label="本店">' + st.map(opt).join('') + '</optgroup>' + (all.length ? '<optgroup label="其它门店">' + all.map(opt).join('') + '</optgroup>' : '');
   $('#eNo').value = keep || '';
 }
 $('#eStore').onchange = () => eFillNo('');
@@ -937,10 +941,13 @@ $('#rPng').onclick = () => { if (!rCanvas) return; rCanvas.toBlob(b => download(
 $('#rXls').onclick = () => {
   if (!rData) return;
   const st = rData.by === 'store';
-  const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '份数', '新开365卡', '365续卡', '其它']]
-    .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn, o.ot]))
-    .concat([[null, '合计', null, rData.total, rData.nw, rData.rn, rData.ot]]);
-  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls').then(w => toast('已存到' + w));
+  const rows = (st ? [['排名', '门店', '区域经理', '份数', '新开365卡', '365续卡', '其它']]
+      .concat(rData.list.map((o, i) => [i + 1, o.name, o.sub || '', o.n, o.nw, o.rn, o.ot]))
+      .concat([[null, '合计', null, rData.total, rData.nw, rData.rn, rData.ot]])
+    : [['排名', '店员', '工号', '门店', '份数', '新开365卡', '365续卡', '其它']]
+      .concat(rData.list.map((o, i) => [i + 1, o.name.replace(/^工号 \S+$/, ''), o.no || '', o.sub || '', o.n, o.nw, o.rn, o.ot]))
+      .concat([[null, '合计', null, null, rData.total, rData.nw, rData.rn, rData.ot]]));
+  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: st ? [6, 16, 14, 8, 8, 8, 8] : [6, 12, 8, 16, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls').then(w => toast('已存到' + w));
   logAct('report', '下载战报 Excel：' + $('#rInfo').textContent);
 };
 
@@ -985,6 +992,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 13:40</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 14:07</span>
 </body>
 </html>

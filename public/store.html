@@ -103,6 +103,8 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <!-- 门店在登录页选（2026-11-12 用户）；工号下拉只列这家店的。操作员用店员版时这里多一行选门店（店员看不到） -->
     <div class="row" id="opStoreRow" hidden><label>门店</label><select id="opStore"><option value="">选门店</option></select><span class="tip">后台</span></div>
     <div class="row"><label>工号</label><select id="no"><option value="">选你的工号</option></select><span class="tip">会记住</span></div>
+    <!-- 工号选「其它」→ 这里能选所有门店的人，能搜名字 / 工号 / 门店（2026-11-13 用户） -->
+    <div class="row" id="othRow" hidden><label>是谁</label><select id="no2"><option value="">搜名字、工号或门店</option></select></div>
     <div class="row"><label>类型</label><div class="seg k4" id="kind"><button type="button" data-v="new">新开365卡</button><button type="button" data-v="renew">365续卡</button><button type="button" data-v="other">其它</button><button type="button" data-v="refund">退货</button></div></div>
     <div class="row" id="pkRow" hidden><label>套餐</label><div class="pk" id="pk"></div></div>
     <!-- 套餐数量（2026-11-12 用户：默认 1，可以改） -->
@@ -126,19 +128,36 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <div id="items"><div class="empty">选了工号就能看到自己提交过的</div></div>
   </div>
   <!-- 版本号（2026-11-12 用户：右上角碍眼，放到页面最底下，同 VIP 店员版）：部署时 bump.sh 写入 -->
-  <div style="margin:36px 0 8px;text-align:center;font-size:11px;letter-spacing:.05em;color:var(--t4);position:relative;z-index:1"><span id="verB">版本 2026.11.13 13:40</span></div>
+  <div style="margin:36px 0 8px;text-align:center;font-size:11px;letter-spacing:.05em;color:var(--t4);position:relative;z-index:1"><span id="verB">版本 2026.11.13 14:07</span></div>
 </div>
 
-<script src="fx.js?v=202611131340"></script>
+<script src="fx.js?v=202611131407"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611131340"></script>
-<script src="xsel.js?v=202611131340"></script>
-<script src="datepick.js?v=202611131340"></script>
-<script src="api.js?v=202611131340"></script>
+<script src="stores.js?v=202611131407"></script>
+<script src="xsel.js?v=202611131407"></script>
+<script src="datepick.js?v=202611131407"></script>
+<script src="api.js?v=202611131407"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
 XSel.attach($('#no'), { placeholder: true });   // 自画下拉，手机上从底部弹出，超过 10 人能搜
+XSel.attach($('#no2'), { placeholder: true });
+const OTHER = '*';   // 工号下拉里的「其它」
+const staffNo = () => $('#no').value === OTHER ? $('#no2').value : $('#no').value;
+let allLoaded = false;
+async function paintOther() {
+  const on = $('#no').value === OTHER;
+  $('#othRow').hidden = !on;
+  if (!on || allLoaded) return;
+  try {
+    const { staff } = await api('/staff?all=1');
+    const by = {}; staff.forEach(x => (by[x.store] = by[x.store] || []).push(x));
+    $('#no2').innerHTML = '<option value="">搜名字、工号或门店</option>' + Object.keys(by).map(st => `<optgroup label="${esc(st)}">${by[st].map(x => `<option value="${esc(x.no)}">${esc(x.name || '')}　${esc(x.no)}</option>`).join('')}</optgroup>`).join('');
+    allLoaded = true;
+    const k = sv.no2 || ''; $('#no2').value = staff.some(x => x.no === k) ? k : '';
+    load();
+  } catch (e) { msg(e.message); }
+}
 $('#pk').innerHTML = PKGS.map((p, i) => `<button type="button" data-i="${i}"><b>${p[0]}</b><i>${p[1]}</i></button>`).join('');
 let STORE = '';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -160,7 +179,7 @@ try {
 } catch (e) {}
 function save() {
   const nos = Object.assign({}, sv.nos || {}); if (STORE) nos[STORE] = $('#no').value;
-  sv = { nos, kind, pkg, qty: $('#qty').value, gift, gname: $('#gname').value, gphone: $('#gphone').value, birth: $('#birth').value, note: $('#note').value, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) };
+  sv = { nos, no2: $('#no2').value || sv.no2 || '', kind, pkg, qty: $('#qty').value, gift, gname: $('#gname').value, gphone: $('#gphone').value, birth: $('#birth').value, note: $('#note').value, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) };
   try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch (e) {}
 }
 function paintKind() {
@@ -199,15 +218,16 @@ const phoneOf = () => $('#phone').value.replace(/\D/g, '');
 $('#phone').oninput = () => { $('#phone').classList.toggle('bad', phoneOf().length > 0 && !/^1\d{10}$/.test(phoneOf()) && phoneOf().length >= 11); save(); };
 $('#name').oninput = save;
 $('#date').oninput = () => { dateTouched = true; save(); };
-$('#no').onchange = () => { save(); load(); };
+$('#no').onchange = () => { save(); paintOther(); load(); };
+$('#no2').onchange = () => { save(); load(); };
 
 function msg(t, ok) { $('#msg').textContent = t; $('#msg').className = 'msg ' + (ok ? 'ok' : 'err'); }
 
 $('#f').onsubmit = async e => {
   e.preventDefault();
-  const no = $('#no').value, phone = phoneOf();
+  const no = staffNo(), phone = phoneOf();
   if (IS_OP && !STORE) return msg('请先选门店');
-  if (!no) return msg('请先选工号');
+  if (!no) return msg($('#no').value === OTHER ? '请在「是谁」里选人' : '请先选工号');
   if (!kind) return msg('请选新开365卡 / 365续卡 / 其它 / 退货');
   const flat = kind === 'other';
   if (!flat && pkg < 0) return msg(kind === 'refund' ? '请选退的是哪个套餐' : '请选套餐');
@@ -233,7 +253,7 @@ $('#f').onsubmit = async e => {
 };
 
 async function load() {
-  const no = $('#no').value;
+  const no = staffNo();
   $('#lt').textContent = no ? `工号 ${no} 提交的 · 近 30 天` : '我提交的 · 近 30 天';
   if (!no) { $('#items').innerHTML = '<div class="empty">选了工号就能看到自己提交过的</div>'; $('#cnt').textContent = ''; return; }
   try {
@@ -257,9 +277,10 @@ $('#chStore').onclick = logout;   // 换门店 = 退出重新登录选
 let IS_OP = false;
 async function loadStaff() {
   const { staff } = await api(IS_OP ? '/staff?store=' + encodeURIComponent(STORE) : '/staff');
-  $('#no').innerHTML = '<option value="">选你的工号</option>' + staff.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('');
+  $('#no').innerHTML = '<option value="">选你的工号</option>' + staff.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('') + `<option value="${OTHER}">其它（别的店的人）</option>`;
   const keep = (sv.nos || {})[STORE];
-  $('#no').value = keep && staff.some(x => x.no === keep) ? keep : '';
+  $('#no').value = keep && (keep === OTHER || staff.some(x => x.no === keep)) ? keep : '';
+  paintOther();
   load();
 }
 api('/me').then(async r => {
