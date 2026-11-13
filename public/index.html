@@ -251,6 +251,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
       <div class="phd"><span id="subInfo">待处理</span>
         <button class="btn sm go1" id="subLoad" type="button">开始处理</button>
         <button class="btn sm" id="subDel" type="button">删除选中</button>
+        <button class="btn sm go1" id="subRe" type="button" hidden>再次导出</button>
         <button class="btn sm" id="subHist" type="button">看已处理</button>
         <button class="btn sm" id="subRef" type="button">刷新</button></div>
       <div class="sublist" id="subList"></div>
@@ -392,14 +393,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611131446"></script>
-<script src="report.js?v=202611131446"></script>
-<script src="xsel.js?v=202611131446"></script>
-<script src="datepick.js?v=202611131446"></script>
-<script src="api.js?v=202611131446"></script>
-<script src="vendor/xlsx.full.min.js?v=202611131446"></script>
-<script src="xls.js?v=202611131446"></script>
-<script src="gen.js?v=202611131446"></script>
+<script src="stores.js?v=202611132333"></script>
+<script src="report.js?v=202611132333"></script>
+<script src="xsel.js?v=202611132333"></script>
+<script src="datepick.js?v=202611132333"></script>
+<script src="api.js?v=202611132333"></script>
+<script src="vendor/xlsx.full.min.js?v=202611132333"></script>
+<script src="xls.js?v=202611132333"></script>
+<script src="gen.js?v=202611132333"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -663,21 +664,21 @@ async function loadSubs() {
 }
 function paintSubs() {
   const list = showHist ? subs.recent : subs.pending;
-  const keep = {}; document.querySelectorAll('.ck1').forEach(c => { keep[c.value] = c.checked; });   // 自动刷新时保留已勾 / 没勾
+  const keep = {}; document.querySelectorAll('.ck1').forEach(c => { keep[c.value] = c.checked; }); document.querySelectorAll('.ck2').forEach(c => { keep['r' + c.value] = c.checked; });   // 自动刷新时保留已勾 / 没勾
   $('#subN').textContent = subs.pending.length;
   $('#subInfo').textContent = showHist ? '最近 30 天已处理' : (subs.pending.length ? `待处理 ${subs.pending.length} 条` : '待处理');
   $('#subHist').textContent = showHist ? '看待处理' : '看已处理';
-  $('#subLoad').hidden = $('#subDel').hidden = showHist;
+  $('#subLoad').hidden = $('#subDel').hidden = showHist; $('#subRe').hidden = !showHist;
   const inList = new Set(Object.keys(loaded));
   $('#subList').innerHTML = !list.length ? `<div class="empty">${showHist ? '最近 30 天没有处理过的' : '没有待处理的提交'}</div>` :
-    '<table><thead><tr>' + (showHist ? '' : `<th class="ck"><label class="all"><input type="checkbox" id="ckAll" ${list.some(x => x.kind !== 'other' && x.kind !== 'refund' && !inList.has(x.phone)) ? 'checked' : ''}>全选</label></th>`) +
+    '<table><thead><tr>' + (showHist ? '<th class="ck"><label class="all"><input type="checkbox" id="ckAll2">全选</label></th>' : `<th class="ck"><label class="all"><input type="checkbox" id="ckAll" ${list.some(x => x.kind !== 'other' && x.kind !== 'refund' && !inList.has(x.phone)) ? 'checked' : ''}>全选</label></th>`) +
     '<th>提交时间</th><th>门店</th><th>工号</th><th>姓名</th><th>手机号</th><th>办卡</th><th>日期</th><th>' + (showHist ? '状态' : '') + '</th><th></th></tr></thead><tbody>' +
     list.map(x => { const other = !showHist && x.lock_did && x.lock_did !== subs.me, oth = x.kind === 'other' || x.kind === 'refund';   // 退货（2026-11-12 加）跟其它一样只给后台处理、不导表
       // 「其它」/ 退货不是 365 金卡，不进名单导出：能勾（用来删除），默认不勾，「开始处理」会跳过；处理完点「已处理」（2026-11-12 用户问退货怎么选不中）
-      return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}"${oth ? ' data-oth="1"' : ''} ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !oth && !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
+      return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? `<td class="ck">${x.status === 'done' && !oth ? `<input type="checkbox" class="ck2" value="${x.id}" ${keep['r' + x.id] ? 'checked' : ''}>` : ''}</td>` : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}"${oth ? ' data-oth="1"' : ''} ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !oth && !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
       `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}${x.staff_name ? '　' + esc(x.staff_name) : ''}${x.staff_from ? `<small style="display:block;color:${x.staff_from === '区域经理' ? 'var(--t3)' : 'var(--pink-deep)'}">${esc(x.staff_from)}</small>` : ''}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
       `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(x.kind === 'refund' ? (x.pkg || '未选套餐') + (x.qty > 1 ? ' ×' + x.qty : '') + (x.note ? ' · ' + x.note : '') : oth ? (x.note || '') : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}${x.birth ? `<br>生日 ${sdYmd(x.birth)}` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
-      (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
+      (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>${oth ? '' : ` <button class="lnk reexp" data-id="${x.id}" type="button">再次导出</button>`}` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td><td class="acts">' +
       (x.status !== 'del' && !other ? `<button class="lnk edit" data-id="${x.id}" type="button">修改</button>` : '') +
@@ -697,6 +698,12 @@ function paintSubs() {
     if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = '确定已处理？'; setTimeout(() => { b.classList.remove('sure'); b.textContent = '已处理'; }, 3000); return; }
     try { await api('/subs/done', { ids: [+b.dataset.id], other: true }); loadSubs(); toast('已标为已处理'); } catch (e) { toast(e.message); }
   });
+  // 已导出的再导一次（2026-11-13 用户）：不改状态、不动名单，只照提交内容再出一份 xls
+  const all2 = $('#ckAll2');
+  if (all2) all2.onchange = () => { document.querySelectorAll('.ck2').forEach(c => c.checked = all2.checked); reCount(); };
+  document.querySelectorAll('.ck2').forEach(c => c.onchange = reCount);
+  reCount();
+  document.querySelectorAll('.reexp').forEach(b => b.onclick = () => reExport([+b.dataset.id]));
   document.querySelectorAll('.undo').forEach(b => b.onclick = async () => { try { await api('/sub/undo', { id: +b.dataset.id }); loadSubs(); } catch (e) { toast(e.message); } });
 }
 /* 修改店员提交：改完服务器把旧内容存进 sub_edits，操作记录记「改了什么」 */
@@ -769,6 +776,24 @@ $('#eBox').onsubmit = async e => {
     loadSubs();
   } catch (err) { $('#eErr').textContent = err.message; }
 };
+function reCount() {
+  const n = document.querySelectorAll('.ck2:checked').length;
+  $('#subRe').textContent = n ? `再次导出 ${n} 人` : '再次导出'; $('#subRe').disabled = !n;
+}
+async function reExport(ids) {
+  const rows = subs.recent.filter(x => ids.indexOf(x.id) >= 0 && x.status === 'done' && x.kind !== 'other' && x.kind !== 'refund');
+  if (!rows.length) return toast('先勾选要再次导出的');
+  // 跟载入名单同一套写法再解析，日期 / 续卡 / 份数规则完全一样；同一手机号多条照样并成一人
+  const ps = parse(rows.map(x => [x.name, x.phone, sdYmd(x.sdate), x.kind === 'renew' ? '续卡' : '新开卡', x.qty > 1 ? '×' + x.qty : ''].filter(Boolean).join(' ')).join('\n')).ok;
+  ps.forEach(p => { const x = rows.find(y => y.phone === p.phone); p.store = x ? x.store : ''; });
+  const opt = { date: curDate(), mode }, name = Gen.allName(ps, opt.date);
+  try {
+    const where = await download(new Blob([Gen.buildXls(XLSX, XLS, ps, opt)], { type: XLS_MIME }), name);
+    toast(`已再次导出 ${name}，在${where}`);
+    logAct('export', `再次导出 ${ps.length} 人：` + rows.map(x => `#${x.id} ${x.name || ''} ${x.phone}`).join('、'));
+  } catch (e) { toast('导出出错：' + e.message); }
+}
+$('#subRe').onclick = () => reExport([...document.querySelectorAll('.ck2:checked')].map(c => +c.value));
 function goCount() {
   const n = document.querySelectorAll('.ck1:checked:not(:disabled):not([data-oth])').length;   // 退货 / 其它不算进「开始处理」人数
   $('#subLoad').textContent = n ? `开始处理 ${n} 人` : '开始处理';
@@ -1001,6 +1026,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 14:46</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 23:33</span>
 </body>
 </html>
