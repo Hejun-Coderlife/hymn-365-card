@@ -262,7 +262,7 @@ async function handle(req, env) {
     // 工号带上名字；不是这家店的人（工号选了「其它」）标出是哪家店的，区域经理标「区域经理」（2026-11-13 用户）
     const sf = {}; (await db.prepare('SELECT no, name, store FROM staff').all()).results.forEach((x) => { sf[x.no] = x; });
     const tag = (x) => { const f = sf[x.staff_no]; if (!f) return; x.staff_name = f.name;
-      if (f.store !== x.store) x.staff_from = mgrOf(x.store) === f.name ? '区域经理' : f.store + '的'; };
+      if (f.store !== x.store) x.staff_from = mgrOf(x.store) === f.name ? '区域经理' : f.store === '后台' ? '后台人员' : f.store + '的'; };   // 后台人员（徐萍）不写「后台的」，免得看成单子属于后台（2026-11-13 用户）
     pend.results.forEach(tag); done.results.forEach(tag);
     return json({ pending: pend.results, recent: done.results, me: u.did });
   }
