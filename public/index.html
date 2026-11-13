@@ -246,7 +246,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
 
   <!-- 店员手机上提交的（store.html → /api/sub），2026-11-11 起 -->
   <section class="sec" id="subSec" hidden>
-    <h3>店员提交 <span class="n" id="subN">0</span> <span class="hint" style="letter-spacing:0">店员在手机上填的，勾选后点「开始处理」放进名单再导出，导出完自动标「已导出」</span></h3>
+    <h3>店员提交 <span class="n" id="subN">0</span> <span class="hint" style="letter-spacing:0">店员在手机上填的，勾选后点「开始处理」放进名单再导出，导出完自动标「已导出」、名单自动清空</span></h3>
     <div class="subbox">
       <div class="phd"><span id="subInfo">待处理</span>
         <button class="btn sm go1" id="subLoad" type="button">开始处理</button>
@@ -392,14 +392,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611131407"></script>
-<script src="report.js?v=202611131407"></script>
-<script src="xsel.js?v=202611131407"></script>
-<script src="datepick.js?v=202611131407"></script>
-<script src="api.js?v=202611131407"></script>
-<script src="vendor/xlsx.full.min.js?v=202611131407"></script>
-<script src="xls.js?v=202611131407"></script>
-<script src="gen.js?v=202611131407"></script>
+<script src="stores.js?v=202611131423"></script>
+<script src="report.js?v=202611131423"></script>
+<script src="xsel.js?v=202611131423"></script>
+<script src="datepick.js?v=202611131423"></script>
+<script src="api.js?v=202611131423"></script>
+<script src="vendor/xlsx.full.min.js?v=202611131423"></script>
+<script src="xls.js?v=202611131423"></script>
+<script src="gen.js?v=202611131423"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -564,12 +564,13 @@ $('#tpl').onclick = () => {
   download(new Blob([bytes], { type: XLS_MIME }), '365金卡名单模板.xls').then(w => toast('模板已存到' + w));
   logAct('tpl', '下载名单模板');
 };
-$('#clear').onclick = () => {
+function clearList() {
   const ids = Object.values(loaded);
   if (ids.length && location.protocol !== 'file:') api('/subs/release', { ids }).then(loadSubs).catch(() => {});   // 清空 = 放开锁，别人可以载入了
   loaded = {}; saveLoaded();
-  $('#txt').value = ''; update(); $('#txt').focus();
-};
+  $('#txt').value = ''; update();
+}
+$('#clear').onclick = () => { clearList(); $('#txt').focus(); };
 const drop = $('#drop');
 ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); drop.classList.add('over'); } }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
@@ -616,10 +617,14 @@ $('#go').onclick = async () => {
   const { opt } = update();
   if (!people.length) return;
   const btn = $('#go'); btn.disabled = true;
+  // 店员提交载入的人带上门店（3次护理导入 F 列）
+  people.forEach(p => { const x = loaded[p.phone] && subs.pending.find(y => y.id === loaded[p.phone]); p.store = x ? x.store : ''; });
   try {
     const where = await download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date));
-    toast(`已导出 ${Gen.allName(people, opt.date)}，在${where}`);
-    markExported();
+    toast(`已导出 ${Gen.allName(people, opt.date)}，在${where}；名单已清空`);
+    await markExported();
+    // 2026-11-13 用户：导出过以后名单自动清空，免得下一批跟这批混在一起（导错了到「看已处理」里撤回再载入）
+    clearList();
   } catch (e) { toast('导出出错：' + e.message); }
   finally { btn.textContent = '导出 Excel'; btn.disabled = false; }
 };
@@ -666,7 +671,7 @@ function paintSubs() {
     list.map(x => { const other = !showHist && x.lock_did && x.lock_did !== subs.me, oth = x.kind === 'other' || x.kind === 'refund';   // 退货（2026-11-12 加）跟其它一样只给后台处理、不导表
       // 「其它」/ 退货不是 365 金卡，不进名单导出：能勾（用来删除），默认不勾，「开始处理」会跳过；处理完点「已处理」（2026-11-12 用户问退货怎么选不中）
       return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}"${oth ? ' data-oth="1"' : ''} ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !oth && !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
-      `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
+      `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}${x.staff_name ? '　' + esc(x.staff_name) : ''}${x.staff_from ? `<small style="display:block;color:${x.staff_from === '区域经理' ? 'var(--t3)' : 'var(--pink-deep)'}">${esc(x.staff_from)}</small>` : ''}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
       `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(x.kind === 'refund' ? (x.pkg || '未选套餐') + (x.qty > 1 ? ' ×' + x.qty : '') + (x.note ? ' · ' + x.note : '') : oth ? (x.note || '') : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}${x.birth ? `<br>生日 ${sdYmd(x.birth)}` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
       (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
@@ -992,6 +997,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 14:07</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 14:23</span>
 </body>
 </html>

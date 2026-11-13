@@ -258,6 +258,11 @@ async function handle(req, env) {
     const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.birth, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
     pend.results.forEach((x) => { if (!x.lock_did || x.lock_at < now - LOCK_MS) { x.lock_did = null; x.lock_dev = null; } });
     const done = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status <> 'pending' AND COALESCE(done_at, del_at) > ? ORDER BY COALESCE(done_at, del_at) DESC LIMIT 300").bind(now - 30 * DAY).all();
+    // 工号带上名字；不是这家店的人（工号选了「其它」）标出是哪家店的，区域经理标「区域经理」（2026-11-13 用户）
+    const sf = {}; (await db.prepare('SELECT no, name, store FROM staff').all()).results.forEach((x) => { sf[x.no] = x; });
+    const tag = (x) => { const f = sf[x.staff_no]; if (!f) return; x.staff_name = f.name;
+      if (f.store !== x.store) x.staff_from = mgrOf(x.store) === f.name ? '区域经理' : f.store + '的'; };
+    pend.results.forEach(tag); done.results.forEach(tag);
     return json({ pending: pend.results, recent: done.results, me: u.did });
   }
   // 删除（只能删待处理的）：店员只能删自己工号的

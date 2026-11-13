@@ -44,23 +44,32 @@
 
   function open(sel, btn, paint, opt) {
     const items = [];
+    // opt.more = 某个选项的值（如「其它」）：点它不选中，而是在同一个列表里展开 data-more 的分组（别的店的人）并出搜索框（2026-11-13 用户）
+    let more = false;
     [...sel.children].forEach(n => {
-      if (n.tagName === 'OPTGROUP') { items.push({ g: n.label }); [...n.children].forEach(o => items.push({ v: o.value, t: o.textContent, grp: n.label })); }
+      if (n.tagName === 'OPTGROUP') { const m = n.dataset.more === '1'; items.push({ g: n.label, m }); [...n.children].forEach(o => items.push({ v: o.value, t: o.textContent, grp: n.label, m })); }
       else if (!(opt.placeholder && n.value === '')) items.push({ v: n.value, t: n.textContent });   // 「选你的门店」这种提示不当选项
     });
+    // 当前选中的就在「更多」里 → 打开时直接展开
+    if (opt.more && items.some(x => x.m && x.v === sel.value)) more = true;
     const nOpt = items.filter(x => !x.g).length;
     const mask = document.createElement('div'); mask.className = 'xs-mask';
     const pop = document.createElement('div'); pop.className = 'xs-pop';
-    pop.innerHTML = (nOpt > 10 ? '<input class="xs-q" placeholder="搜索">' : '') + '<div class="xs-list"></div>';
+    pop.innerHTML = (nOpt > 10 ? `<input class="xs-q" placeholder="${opt.more ? '搜名字、工号或门店' : '搜索'}">` : '') + '<div class="xs-list"></div>';
     const list = pop.querySelector('.xs-list'), q = pop.querySelector('.xs-q');
     const close = () => { mask.remove(); pop.remove(); btn.classList.remove('open'); };
     const pick = v => { sel.value = v; paint(); sel.dispatchEvent(new Event('change', { bubbles: true })); close(); };
     function draw() {
       const kw = q ? q.value.trim() : '';
-      const hit = items.filter(x => x.g ? !kw || items.some(y => y.grp === x.g && y.t.indexOf(kw) >= 0) : !kw || x.t.indexOf(kw) >= 0 || (x.grp || '').indexOf(kw) >= 0);
+      if (q && opt.more) q.style.display = more ? '' : 'none';
+      const vis = items.filter(x => opt.more ? (more ? x.v !== opt.more : !x.m) : true);
+      const hit = vis.filter(x => x.g ? !kw || vis.some(y => y.grp === x.g && (y.t.indexOf(kw) >= 0 || x.g.indexOf(kw) >= 0)) : !kw || x.t.indexOf(kw) >= 0 || (x.grp || '').indexOf(kw) >= 0);
       list.innerHTML = hit.length ? hit.map(x => x.g ? `<div class="xs-g">${esc(x.g)}</div>`
         : `<div class="xs-o${x.v === sel.value ? ' on' : ''}" data-v="${esc(x.v)}"><span class="ck">${x.v === sel.value ? '✓' : ''}</span>${esc(x.t)}</div>`).join('') : '<div class="xs-none">没有对上的</div>';
-      list.querySelectorAll('.xs-o').forEach(o => o.onclick = () => pick(o.dataset.v));
+      list.querySelectorAll('.xs-o').forEach(o => o.onclick = () => {
+        if (opt.more && o.dataset.v === opt.more) { more = true; draw(); place(); if (q) q.focus(); return; }
+        pick(o.dataset.v);
+      });
     }
     draw();
     mask.onclick = close;
@@ -70,13 +79,16 @@
     }
     document.body.append(mask, pop);
     btn.classList.add('open');
-    const r = btn.getBoundingClientRect();
-    pop.style.minWidth = r.width + 'px';
-    const h = pop.offsetHeight, w = pop.offsetWidth;
-    pop.style.left = Math.min(r.left, innerWidth - w - 8) + 'px';
-    pop.style.top = (r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    function place() {
+      const r = btn.getBoundingClientRect();
+      pop.style.minWidth = r.width + 'px';
+      const h = pop.offsetHeight, w = pop.offsetWidth;
+      pop.style.left = Math.min(r.left, innerWidth - w - 8) + 'px';
+      pop.style.top = (r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    }
+    place();
     const on = list.querySelector('.xs-o.on'); if (on) on.scrollIntoView({ block: 'nearest' });
-    if (q && innerWidth > 600) q.focus();   // 手机上不自动弹键盘
+    if (q && innerWidth > 600 && (!opt.more || more)) q.focus();   // 手机上不自动弹键盘
   }
   window.XSel = { attach };
 })();
