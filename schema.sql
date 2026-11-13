@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS subs (
   note     TEXT,              -- 其它：手写备注
   giver_name  TEXT,           -- 送朋友：送的人（name / phone 是被送的人，卡办在她名下）
   giver_phone TEXT,
+  birth    TEXT,              -- 会员生日 YYYY-MM-DD（2026-11-12 加，只有新开365卡填；送朋友时是被送的人的）
   staff_no TEXT NOT NULL,     -- 工号
   store    TEXT,              -- 门店（2026-11-11 加，战报按门店筛）
   created  INTEGER NOT NULL,
@@ -89,7 +90,7 @@ CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT
 CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, '操作记录不能修改'); END;
 CREATE TRIGGER IF NOT EXISTS subs_no_delete BEFORE DELETE ON subs BEGIN SELECT RAISE(ABORT, '提交记录不能删除'); END;
 -- 内容只能经后台「修改」改：edit_n 必须正好 +1，旧内容同时写进 sub_edits
-CREATE TRIGGER IF NOT EXISTS subs_no_edit BEFORE UPDATE OF name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, staff_no, store, created ON subs
+CREATE TRIGGER IF NOT EXISTS subs_no_edit BEFORE UPDATE OF name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, birth, staff_no, store, created ON subs
   WHEN NEW.created IS NOT OLD.created OR COALESCE(NEW.edit_n, 0) <> COALESCE(OLD.edit_n, 0) + 1
   BEGIN SELECT RAISE(ABORT, '提交记录内容只能经后台「修改」改（会留记录）'); END;
 -- 改之前的旧内容，只增不删（2026-11-12 用户：后台允许修改，但要留下记录）

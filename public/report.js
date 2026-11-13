@@ -67,6 +67,9 @@
     g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
     const band = g.createLinearGradient(0, 0, W, 0); band.addColorStop(0, C.deep); band.addColorStop(0.5, C.light); band.addColorStop(1, C.deep);
     g.fillStyle = band; g.fillRect(0, 0, W, 4);
+    // 背景水印「365」（2026-11-12 用户，跟会员战报「VIP」、抖音战报「抖」同一位置）：右上角大字，淡金，压在内容下面
+    g.save(); g.globalAlpha = 0.08; g.fillStyle = C.gold; g.font = 'italic 140px ' + NUM; g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+    g.fillText('365', W - PAD + 8, 205); g.restore();
     let y = 44;
     if (logo) g.drawImage(logo, PAD, y - 16, 84, 84 * logo.height / logo.width);
     g.font = '10px ' + SANS; g.fillStyle = C.t3; spaced(g, '套餐销售战报', W - PAD, y, 2.5, 'right');

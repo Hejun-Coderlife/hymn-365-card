@@ -168,6 +168,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .btn.pri{background:var(--ink);color:#fff;border-color:var(--ink);padding:13px 30px;font-size:14px}
 .btn.pri:disabled{background:var(--t4);border-color:var(--t4);cursor:not-allowed}
 .hint{font-size:12px;color:var(--t3)}
+.saveto{font-size:13px;color:var(--t3);white-space:nowrap;padding-right:18px;border-right:1px solid var(--line-2)}
+.saveto b{color:var(--ink);font-weight:500;margin:0 4px}
+.saveto .lnk{margin-left:6px}
 
 /* 设置 */
 .opts{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-2)}
@@ -264,6 +267,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
         <div class="f" id="eGpRow"><label>送的人手机</label><input id="eGphone" maxlength="13"></div>
         <div class="f"><label id="eNlab">姓名</label><input id="eName" maxlength="30"></div>
         <div class="f"><label id="eplab">手机号</label><input id="ePhone" maxlength="13"></div>
+        <div class="f" id="eBdRow"><label>会员生日</label><input id="eBirth" type="date" data-dp="birth"></div>
         <div class="f"><label id="eDlab">日期</label><input id="eDate" type="date"></div>
         <div class="eact"><span class="err" id="eErr"></span><button class="btn sm" id="eCancel" type="button">取消</button><button class="btn sm go1" type="submit">保存修改</button></div>
         <div class="hist" id="eHist"></div>
@@ -321,6 +325,8 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   <div class="bar">
     <!-- 2026-11-12 用户：只生成一个表格，压缩、生成文件夹都不要 -->
     <button class="btn pri" id="go" type="button">导出 Excel</button>
+    <!-- 下载位置（2026-11-12 用户：后台生成的 Excel 要能改下载路径）。选一次记在本机，导出直接存进去 -->
+    <span class="saveto" id="saveTo">保存到 <b id="saveDir">下载</b> <button class="lnk" id="saveChg" type="button">更改</button><button class="lnk" id="saveDef" type="button" hidden>改回「下载」</button></span>
     <span class="fn" id="fn"></span>
   </div>
 </div>
@@ -386,14 +392,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121339"></script>
-<script src="report.js?v=202611121339"></script>
-<script src="xsel.js?v=202611121339"></script>
-<script src="datepick.js?v=202611121339"></script>
-<script src="api.js?v=202611121339"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121339"></script>
-<script src="xls.js?v=202611121339"></script>
-<script src="gen.js?v=202611121339"></script>
+<script src="stores.js?v=202611121604"></script>
+<script src="report.js?v=202611121604"></script>
+<script src="xsel.js?v=202611121604"></script>
+<script src="datepick.js?v=202611121604"></script>
+<script src="api.js?v=202611121604"></script>
+<script src="vendor/xlsx.full.min.js?v=202611121604"></script>
+<script src="xls.js?v=202611121604"></script>
+<script src="gen.js?v=202611121604"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -551,7 +557,7 @@ $('#tpl').onclick = () => {
     ['示例-张三', '13800000001', null],
     ['示例-李四', '13800000002', sd(new Date(today.getFullYear(), today.getMonth() + 1, 1))],
   ] }]);
-  download(new Blob([bytes], { type: XLS_MIME }), '365金卡名单模板.xls');
+  download(new Blob([bytes], { type: XLS_MIME }), '365金卡名单模板.xls').then(w => toast('模板已存到' + w));
   logAct('tpl', '下载名单模板');
 };
 $('#clear').onclick = () => {
@@ -564,12 +570,41 @@ const drop = $('#drop');
 ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); drop.classList.add('over'); } }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
-function download(blob, name) {
+/* 下载位置：Chrome / Edge 能选一个文件夹（File System Access），句柄存 IndexedDB，以后导出直接写进去；
+   别的浏览器没这功能，照旧进「下载」，「更改」点了会提示去浏览器设置里改 */
+const DIR_OK = 'showDirectoryPicker' in window;
+const dirDB = () => new Promise((ok, no) => { const q = indexedDB.open('c365', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); });
+const dirGet = async () => { try { const db = await dirDB(); return await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').get('dir'); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }); } catch (e) { return null; } };
+const dirSet = async h => { const db = await dirDB(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); h ? t.objectStore('kv').put(h, 'dir') : t.objectStore('kv').delete('dir'); t.oncomplete = ok; t.onerror = ok; }); };
+let saveDir = null;
+function paintSaveDir() { $('#saveDir').textContent = saveDir ? saveDir.name : '下载'; $('#saveDef').hidden = !saveDir; }
+dirGet().then(h => { saveDir = h; paintSaveDir(); });
+$('#saveChg').onclick = async () => {
+  if (!DIR_OK) return toast('这个浏览器不能在网页里选位置：请用 Chrome，或去浏览器设置里改下载位置');
+  try { const h = await window.showDirectoryPicker({ id: 'c365-xls', mode: 'readwrite', startIn: saveDir || 'downloads' }); saveDir = h; await dirSet(h); paintSaveDir(); toast('以后导出存到「' + h.name + '」'); }
+  catch (e) { if (e.name !== 'AbortError') toast('没选成：' + e.message); }
+};
+$('#saveDef').onclick = async () => { saveDir = null; await dirSet(null); paintSaveDir(); toast('改回「下载」文件夹'); };
+// 存文件：有选好的文件夹就写进去（同名自动加 (2)），没有 / 没给权限就照旧下载。返回存到了哪
+async function download(blob, name) {
+  if (saveDir) try {
+    let perm = await saveDir.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await saveDir.requestPermission({ mode: 'readwrite' });   // 浏览器重开后要再点一次「允许」
+    if (perm === 'granted') {
+      const dot = name.lastIndexOf('.'), base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+      let fn = name;
+      for (let i = 2; i < 100; i++) { try { await saveDir.getFileHandle(fn); fn = `${base} (${i})${ext}`; } catch (e) { break; } }
+      const w = await (await saveDir.getFileHandle(fn, { create: true })).createWritable();
+      await w.write(blob); await w.close();
+      return '「' + saveDir.name + '」文件夹';
+    }
+  } catch (e) { toast('存不进「' + saveDir.name + '」，改存到「下载」：' + e.message); }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return '「下载」文件夹';
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const XLS_MIME = 'application/vnd.ms-excel';
@@ -578,8 +613,8 @@ $('#go').onclick = async () => {
   if (!people.length) return;
   const btn = $('#go'); btn.disabled = true;
   try {
-    download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date));
-    toast(`已导出 ${Gen.allName(people, opt.date)}，在「下载」文件夹`);
+    const where = await download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date));
+    toast(`已导出 ${Gen.allName(people, opt.date)}，在${where}`);
     markExported();
   } catch (e) { toast('导出出错：' + e.message); }
   finally { btn.textContent = '导出 Excel'; btn.disabled = false; }
@@ -628,7 +663,7 @@ function paintSubs() {
       // 「其它」/ 退货不是 365 金卡，不进名单导出：能勾（用来删除），默认不勾，「开始处理」会跳过；处理完点「已处理」（2026-11-12 用户问退货怎么选不中）
       return '<tr' + (other ? ' class="locked"' : '') + '>' + (showHist ? '' : `<td class="ck"><input type="checkbox" class="ck1" value="${x.id}"${oth ? ' data-oth="1"' : ''} ${other ? 'disabled' : ''} ${!other && (x.id in keep ? keep[x.id] : !oth && !inList.has(x.phone)) ? 'checked' : ''}></td>`) +
       `<td class="num">${tm(x.created)}</td><td>${esc(x.store || '—')}</td><td>${esc(x.staff_no)}</td><td>${esc(x.name || '—')}</td><td class="num">${x.phone}</td>` +
-      `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(x.kind === 'refund' ? (x.pkg || '未选套餐') + (x.qty > 1 ? ' ×' + x.qty : '') + (x.note ? ' · ' + x.note : '') : oth ? (x.note || '') : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
+      `<td class="kd"${x.kind === 'refund' ? ' style="color:var(--pink-deep)"' : ''}>${KIND_NAME[x.kind] || x.kind}${x.edit_n ? `<span class="ed" data-id="${x.id}" title="点开看改了什么">改过 ${x.edit_n} 次</span>` : ''}<small>${esc(x.kind === 'refund' ? (x.pkg || '未选套餐') + (x.qty > 1 ? ' ×' + x.qty : '') + (x.note ? ' · ' + x.note : '') : oth ? (x.note || '') : (x.pkg ? x.pkg + (x.qty > 1 ? ' ×' + x.qty : '') : '未选套餐'))}${x.giver_phone ? `<br>送朋友：${esc(x.giver_name || '')} ${x.giver_phone} 送的` : ''}${x.birth ? `<br>生日 ${sdYmd(x.birth)}` : ''}</small></td><td class="num">${x.kind === 'renew' ? '<small style="color:var(--t3)">原卡到期 </small>' : ''}${sdYmd(x.sdate)}</td><td>` +
       (showHist ? (x.status === 'done' ? `<span class="st done">${oth ? '已处理' : '已导出'} ${tm(x.done_at)}</span> <button class="lnk undo" data-id="${x.id}" type="button">撤回</button>` : `<span class="st del">已删 · ${esc(x.del_by || '')}</span>`)
         : other ? `<span class="busy">处理中 · ${esc(x.lock_dev || '另一台设备')} · ${tm(x.lock_at)}</span> <button class="lnk take" data-id="${x.id}" type="button">接手</button>`
         : (inList.has(x.phone) ? '<span class="loaded">已在名单里</span>' : '')) + '</td><td class="acts">' +
@@ -663,6 +698,7 @@ function ePaint() {
   const g = eGift && !flat && !rf;
   document.querySelectorAll('#eGift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === eGift));
   $('#eGnRow').hidden = $('#eGpRow').hidden = !g;
+  $('#eBdRow').hidden = eKind !== 'new';
   $('#eNlab').textContent = g ? '被送的人' : '姓名'; $('#eplab').textContent = g ? '被送人手机' : '手机号';
   $('#eDlab').textContent = eKind === 'renew' ? '原卡到期日' : eKind === 'new' ? '开卡日期' : eKind === 'refund' ? '退货日期' : '日期';
   if (!g) $('#eNlab').textContent = eKind === 'refund' ? '顾客姓名' : '姓名';
@@ -681,7 +717,7 @@ $('#eStore').onchange = () => eFillNo('');
 async function openEdit(x) {
   if (!x) return;
   eCur = x; eKind = x.kind; ePk = PKG_NAMES.indexOf(x.pkg || ''); eGift = !!x.giver_phone; $('#eQty').value = x.qty || 1;
-  $('#eGname').value = x.giver_name || ''; $('#eGphone').value = x.giver_phone || '';
+  $('#eGname').value = x.giver_name || ''; $('#eGphone').value = x.giver_phone || ''; $('#eBirth').value = x.birth || '';
   $('#eTitle').textContent = `修改提交 #${x.id}`;
   $('#eStore').value = x.store || ''; $('#eName').value = x.name || ''; $('#ePhone').value = x.phone; $('#eDate').value = x.sdate; $('#eNote').value = x.note || '';
   $('#eErr').textContent = ''; ePaint(); $('#eMask').hidden = false;
@@ -689,7 +725,7 @@ async function openEdit(x) {
   $('#eHist').innerHTML = '';
   if (x.edit_n) try {
     const { edits } = await api('/sub/edits?id=' + x.id);
-    const F = { store: '门店', staff_no: '工号', kind: '办卡', pkg: '套餐', qty: '数量', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', name: '姓名', phone: '手机号', sdate: '日期' };
+    const F = { store: '门店', staff_no: '工号', kind: '办卡', pkg: '套餐', qty: '数量', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', birth: '生日', name: '姓名', phone: '手机号', sdate: '日期' };
     const sh = (k, v) => k === 'kind' ? (KIND_NAME[v] || v) : (v == null || v === '' ? '空' : v);
     $('#eHist').innerHTML = '<b>修改记录</b>' + edits.map(e => { const a = JSON.parse(e.before || '{}'), z = JSON.parse(e.after || '{}');
       return `<div><span>${tm(e.at)} · ${esc(e.dev || '')}</span>${Object.keys(F).filter(k => String(a[k] == null ? '' : a[k]) !== String(z[k] == null ? '' : z[k])).map(k => esc(F[k] + ' ' + sh(k, a[k]) + ' → ' + sh(k, z[k]))).join('；')}</div>`; }).join('');
@@ -705,7 +741,7 @@ $('#eBox').onsubmit = async e => {
   if (eKind === 'other' && !$('#eNote').value.trim()) return $('#eErr').textContent = '选了其它，请写备注';
   try {
     const r = await api('/sub/edit', { id: eCur.id, store: $('#eStore').value, staff_no: $('#eNo').value, kind: eKind, pkg: flat ? '' : PKG_NAMES[ePk], qty: flat ? null : $('#eQty').value,
-      note: flat || rf ? $('#eNote').value.trim() : '', gift: eGift && !flat && !rf, giver_name: $('#eGname').value.trim(), giver_phone: $('#eGphone').value, name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
+      note: flat || rf ? $('#eNote').value.trim() : '', gift: eGift && !flat && !rf, giver_name: $('#eGname').value.trim(), giver_phone: $('#eGphone').value, birth: eKind === 'new' ? $('#eBirth').value : '', name: $('#eName').value.trim(), phone: $('#ePhone').value, sdate: $('#eDate').value });
     $('#eMask').hidden = true; toast(r.same ? '没有改动' : '已修改，改动记在操作记录里');
     // 已经载入名单的，名单里那一行跟着换
     if (!r.same && loaded[eCur.phone]) {
@@ -893,14 +929,14 @@ $('#rCopy').onclick = () => {
   rCanvas.toBlob(b => navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(() => toast('已复制，去微信里粘贴就行')).catch(() => toast('复制失败，请用「下载图片」')), 'image/png');
   logAct('report', '复制战报图：' + $('#rInfo').textContent);
 };
-$('#rPng').onclick = () => { if (!rCanvas) return; const a = document.createElement('a'); a.download = rName() + '.png'; a.href = rCanvas.toDataURL('image/png'); a.click(); logAct('report', '下载战报图：' + $('#rInfo').textContent); };
+$('#rPng').onclick = () => { if (!rCanvas) return; rCanvas.toBlob(b => download(b, rName() + '.png').then(w => toast('已存到' + w)), 'image/png'); logAct('report', '下载战报图：' + $('#rInfo').textContent); };
 $('#rXls').onclick = () => {
   if (!rData) return;
   const st = rData.by === 'store';
   const rows = [['排名', st ? '门店' : '工号', st ? '区域经理' : '门店', '份数', '新开365卡', '365续卡', '其它']]
     .concat(rData.list.map((o, i) => [i + 1, st ? o.name : o.name.replace(/^工号 /, ''), o.sub || '', o.n, o.nw, o.rn, o.ot]))
     .concat([[null, '合计', null, rData.total, rData.nw, rData.rn, rData.ot]]);
-  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls');
+  download(new Blob([XLS.write(XLSX.CFB, [{ name: '战报', widths: [6, 16, 14, 8, 8, 8, 8], rows }])], { type: XLS_MIME }), rName() + '.xls').then(w => toast('已存到' + w));
   logAct('report', '下载战报 Excel：' + $('#rInfo').textContent);
 };
 
@@ -944,5 +980,7 @@ if (location.protocol !== 'file:') {
   }).catch(() => {});
 }
 </script>
+<!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.12 16:04</span>
 </body>
 </html>

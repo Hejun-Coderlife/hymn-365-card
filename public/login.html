@@ -56,11 +56,11 @@ input:focus{border-color:var(--pink-deep)}
   <div class="err" id="err"></div>
   <div class="hint">每个账号最多 5 台设备同时登录<br>超过时，最久没用的那台会自动退出</div>
 </form>
-<script src="fx.js?v=202611121339"></script>
+<script src="fx.js?v=202611121604"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121339"></script>
-<script src="xsel.js?v=202611121339"></script>
-<script src="api.js?v=202611121339"></script>
+<script src="stores.js?v=202611121604"></script>
+<script src="xsel.js?v=202611121604"></script>
+<script src="api.js?v=202611121604"></script>
 <script>
 const $ = s => document.querySelector(s);
 // 2026-11-12 用户：店员版看不到后台入口 → 登录页默认只有店员（门店 + 密码）；
@@ -95,5 +95,7 @@ $('#f').onsubmit = async e => {
   } catch (err) { $('#err').textContent = err.message; $('#go').disabled = false; }
 };
 </script>
+<!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.12 16:04</span>
 </body>
 </html>

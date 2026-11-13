@@ -27,6 +27,10 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
 .row:focus-within label{color:var(--pink-deep)}
 .row{display:flex;align-items:center;border-bottom:1px solid var(--line);min-height:56px}
 .row label{width:84px;flex:none;font-size:14px;color:var(--t2)}
+/* 续卡的「原卡到期日」要跟开卡日期区分开、引起注意（2026-11-12 用户）：橙红加粗 + 淡橙底 + 左侧色条 */
+.row.warn,.form .row.warn{background:#FFF4EC;box-shadow:inset 3px 0 0 #D2642A}
+.row.warn label,.row.warn:focus-within label{color:#D2642A;font-weight:600;padding-left:10px}
+.row.warn:focus-within,.row.warn{border-bottom-color:#D2642A}
 .row input{flex:1;border:0;outline:none;padding:14px 0;font-size:17px;background:transparent;min-width:0}
 .row input::placeholder{color:var(--t4)}
 .row input.num{font-family:var(--num);font-size:19px}
@@ -110,6 +114,8 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <div class="row" id="noteRow" hidden><label>备注</label><textarea id="note" maxlength="200" placeholder="写清楚办的是什么"></textarea></div>
     <div class="row"><label id="nlab">会员姓名</label><input id="name" placeholder="姓名" maxlength="30"></div>
     <div class="row"><label id="plab">手机号</label><input id="phone" class="num" type="tel" inputmode="numeric" placeholder="11 位手机号" maxlength="13" required></div>
+    <!-- 会员生日（2026-11-12 用户：新开365卡加会员生日），只在新开卡时出现、必填；送朋友时填被送的人的 -->
+    <div class="row" id="bdRow" hidden><label id="blab">会员生日</label><input id="birth" class="num" type="date" data-dp="birth"></div>
     <div class="row"><label id="dlab">开卡日期</label><input id="date" class="num" type="date"></div>
     <button class="go" id="go" type="submit">提交</button>
     <div class="msg" id="msg"></div>
@@ -119,14 +125,16 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <h3><span id="lt">我提交的 · 近 30 天</span><b id="cnt"></b></h3>
     <div id="items"><div class="empty">选了工号就能看到自己提交过的</div></div>
   </div>
+  <!-- 版本号（2026-11-12 用户：右上角碍眼，放到页面最底下，同 VIP 店员版）：部署时 bump.sh 写入 -->
+  <div style="margin:36px 0 8px;text-align:center;font-size:11px;letter-spacing:.05em;color:var(--t4);position:relative;z-index:1"><span id="verB">版本 2026.11.12 16:04</span></div>
 </div>
 
-<script src="fx.js?v=202611121339"></script>
+<script src="fx.js?v=202611121604"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611121339"></script>
-<script src="xsel.js?v=202611121339"></script>
-<script src="datepick.js?v=202611121339"></script>
-<script src="api.js?v=202611121339"></script>
+<script src="stores.js?v=202611121604"></script>
+<script src="xsel.js?v=202611121604"></script>
+<script src="datepick.js?v=202611121604"></script>
+<script src="api.js?v=202611121604"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -146,13 +154,13 @@ let kind = '', pkg = -1, gift = false, dateTouched = false, sv = {};
 try {
   sv = JSON.parse(localStorage.getItem(KEY) || '{}');
   if (sv.day === iso(today)) {
-    kind = sv.kind || ''; pkg = sv.pkg != null ? sv.pkg : -1; gift = !!sv.gift; $('#qty').value = sv.qty || 1; $('#note').value = sv.note || ''; $('#gname').value = sv.gname || ''; $('#gphone').value = sv.gphone || '';
+    kind = sv.kind || ''; pkg = sv.pkg != null ? sv.pkg : -1; gift = !!sv.gift; $('#qty').value = sv.qty || 1; $('#note').value = sv.note || ''; $('#gname').value = sv.gname || ''; $('#gphone').value = sv.gphone || ''; $('#birth').value = sv.birth || '';
     $('#name').value = sv.name || ''; $('#phone').value = sv.phone || ''; if (sv.date) { $('#date').value = sv.date; dateTouched = true; }
   }
 } catch (e) {}
 function save() {
   const nos = Object.assign({}, sv.nos || {}); if (STORE) nos[STORE] = $('#no').value;
-  sv = { nos, kind, pkg, qty: $('#qty').value, gift, gname: $('#gname').value, gphone: $('#gphone').value, note: $('#note').value, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) };
+  sv = { nos, kind, pkg, qty: $('#qty').value, gift, gname: $('#gname').value, gphone: $('#gphone').value, birth: $('#birth').value, note: $('#note').value, name: $('#name').value, phone: $('#phone').value, date: dateTouched ? $('#date').value : '', day: iso(today) };
   try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch (e) {}
 }
 function paintKind() {
@@ -166,9 +174,11 @@ function paintKind() {
   $('#qtyRow').hidden = !(kind === 'new' || kind === 'renew' || kind === 'refund');
   document.querySelectorAll('#gift button').forEach(b => b.classList.toggle('on', (b.dataset.v === '1') === gift));
   $('#gnRow').hidden = $('#gpRow').hidden = !g;
+  $('#bdRow').hidden = kind !== 'new'; $('#blab').textContent = g ? '被送人生日' : '会员生日';
   $('#nlab').textContent = g ? '被送的人' : '会员姓名'; $('#name').placeholder = g ? '被送的人姓名' : '姓名';
   $('#plab').textContent = g ? '被送人手机' : '手机号';
   // 续卡填「原卡到期日」（2026-11-12 用户），新卡从这天算；要店员自己选，不给默认
+  $('#dlab').closest('.row').classList.toggle('warn', kind === 'renew');
   $('#dlab').textContent = kind === 'renew' ? '原卡到期日' : kind === 'other' ? '日期' : kind === 'refund' ? '退货日期' : '开卡日期';
   $('#nlab').textContent = g ? '被送的人' : kind === 'refund' ? '顾客姓名' : '会员姓名';
   if (!dateTouched) $('#date').value = kind === 'renew' ? '' : iso(today);
@@ -177,7 +187,7 @@ document.querySelectorAll('#kind button').forEach(b => b.onclick = () => { kind 
 document.querySelectorAll('#pk button').forEach(b => b.onclick = () => { pkg = +b.dataset.i; paintKind(); save(); });
 $('#note').oninput = save;
 document.querySelectorAll('#gift button').forEach(b => b.onclick = () => { gift = b.dataset.v === '1'; paintKind(); save(); if (gift) $('#gname').focus(); });
-$('#gname').oninput = save; $('#gphone').oninput = save;
+$('#gname').oninput = save; $('#gphone').oninput = save; $('#birth').oninput = save;
 const qtyN = () => Math.min(99, Math.max(1, parseInt($('#qty').value, 10) || 1));
 $('#qm').onclick = () => { $('#qty').value = Math.max(1, qtyN() - 1); save(); };
 $('#qp').onclick = () => { $('#qty').value = Math.min(99, qtyN() + 1); save(); };
@@ -207,14 +217,16 @@ $('#f').onsubmit = async e => {
   if (g && !$('#gname').value.trim()) { $('#gname').focus(); return msg('请填送的人姓名'); }
   if (g && !/^1\d{10}$/.test(gp)) { $('#gphone').focus(); return msg('送的人手机号要 11 位'); }
   if (g && !$('#name').value.trim()) { $('#name').focus(); return msg('请填被送的人姓名'); }
+  if (kind === 'new' && !$('#birth').value) return msg(g ? '请选被送人生日' : '请选会员生日');
+  if (kind === 'new' && $('#birth').value > iso(today)) return msg('生日不能晚于今天，请重选年份');
   if (kind === 'renew' && !$('#date').value) return msg('请选原卡到期日');
   if (!/^1\d{10}$/.test(phone)) { $('#phone').classList.add('bad'); return msg('手机号要 11 位'); }
   if (!$('#date').value) return msg('请选日期');
   $('#go').disabled = true; msg('');
   try {
-    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: flat ? '' : PKG_NAMES[pkg], qty: flat ? null : qtyN(), note: flat || kind === 'refund' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '' });
+    await api('/sub', { store: STORE, staff_no: no, name: $('#name').value.trim(), phone, sdate: $('#date').value, kind, pkg: flat ? '' : PKG_NAMES[pkg], qty: flat ? null : qtyN(), note: flat || kind === 'refund' ? $('#note').value.trim() : '', gift: g, giver_name: g ? $('#gname').value.trim() : '', giver_phone: g ? gp : '', birth: kind === 'new' ? $('#birth').value : '' });
     msg('已提交：' + ($('#name').value.trim() || phone), true);
-    $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; $('#qty').value = 1; $('#gname').value = ''; $('#gphone').value = ''; kind = ''; pkg = -1; gift = false; dateTouched = false; paintKind(); save();
+    $('#name').value = ''; $('#phone').value = ''; $('#note').value = ''; $('#qty').value = 1; $('#gname').value = ''; $('#gphone').value = ''; $('#birth').value = ''; kind = ''; pkg = -1; gift = false; dateTouched = false; paintKind(); save();
     load();
   } catch (err) { msg(err.message); }
   $('#go').disabled = false;

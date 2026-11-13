@@ -51,19 +51,29 @@
 
   function open(inp, btn) {
     const sel = parse(inp.value), today = new Date();
-    let y = (sel || today).getFullYear(), m = (sel || today).getMonth(), mv = false;   // mv = 选年月视图（2026-11-12 用户：跨年一个月一个月翻不好用）
+    // 生日（input 带 data-dp="birth"，2026-11-12）：没选过就从 1990 年的「选年份」开始，不能选以后的日子，底下没有「今天 / 下月1号」
+    const birth = inp.dataset.dp === 'birth';
+    let y = sel ? sel.getFullYear() : birth ? 1990 : today.getFullYear(), m = (sel || today).getMonth(), mv = false, yv = birth && !sel;   // yv = 选年份视图（一页 12 年）   // mv = 选年月视图（2026-11-12 用户：跨年一个月一个月翻不好用）
     const mask = document.createElement('div'); mask.className = 'dp-mask';
     const pop = document.createElement('div'); pop.className = 'dp-pop';
     const close = () => { mask.remove(); pop.remove(); };
     mask.onclick = close;
     const pick = d => { inp.value = iso(d); inp.dispatchEvent(new Event('input', { bubbles: true })); close(); };
     function draw() {
+      if (yv) {   // 年份视图：一页 12 年，‹ › 翻 12 年，点年份进选月
+        const y0 = y - ((y % 12) + 12) % 12;
+        pop.innerHTML = `<div class="dp-hd"><button type="button" data-p="-12">‹</button><b>${y0} – ${y0 + 11}</b><button type="button" data-p="12">›</button></div>
+          <div class="dp-mg">${Array.from({ length: 12 }, (_, i) => y0 + i).map(v => `<button type="button" data-yy="${v}" class="${v === today.getFullYear() ? 't' : ''} ${sel && v === sel.getFullYear() ? 's' : ''}"${birth && v > today.getFullYear() ? ' disabled style="opacity:.3"' : ''}>${v}</button>`).join('')}</div>`;
+        pop.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { y += +b.dataset.p; draw(); });
+        pop.querySelectorAll('[data-yy]').forEach(b => b.onclick = () => { y = +b.dataset.yy; yv = false; mv = true; draw(); });
+        return;
+      }
       if (mv) {   // 年月视图：‹ › 换年，点月份回到日历
         pop.innerHTML = `<div class="dp-hd"><button type="button" data-y="-1">‹</button><b class="sw">${y}年</b><button type="button" data-y="1">›</button></div>
           <div class="dp-mg">${Array.from({ length: 12 }, (_, i) => `<button type="button" data-m="${i}" class="${y === today.getFullYear() && i === today.getMonth() ? 't' : ''} ${sel && y === sel.getFullYear() && i === sel.getMonth() ? 's' : ''}">${i + 1}月</button>`).join('')}</div>`;
         pop.querySelectorAll('[data-y]').forEach(b => b.onclick = () => { y += +b.dataset.y; draw(); });
         pop.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { m = +b.dataset.m; mv = false; draw(); });
-        pop.querySelector('.sw').onclick = () => { mv = false; draw(); };
+        pop.querySelector('.sw').onclick = () => { mv = false; yv = true; draw(); };   // 点年份 → 选年份
         return;
       }
       const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
@@ -71,14 +81,15 @@
       for (let i = 0; i < 42; i++) {
         const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
         const c = [d.getMonth() !== m ? 'o' : '', iso(d) === iso(today) ? 't' : '', sel && iso(d) === iso(sel) ? 's' : ''].join(' ');
-        g += `<button type="button" class="${c}" data-d="${iso(d)}">${d.getDate()}</button>`;
+        g += `<button type="button" class="${c}" data-d="${iso(d)}"${birth && d > today ? ' disabled style="opacity:.3"' : ''}>${d.getDate()}</button>`;
       }
       pop.innerHTML = `<div class="dp-hd"><button type="button" data-n="-1">‹</button><b class="sw">${y}年${m + 1}月</b><button type="button" data-n="1">›</button></div>
         <div class="dp-g">${g}</div>
-        <div class="dp-ft"><button type="button" data-q="today">今天</button><button type="button" data-q="next1">下月1号</button></div>`;
+        ${birth ? '' : '<div class="dp-ft"><button type="button" data-q="today">今天</button><button type="button" data-q="next1">下月1号</button></div>'}`;
       pop.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { m += +b.dataset.n; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } draw(); });
       pop.querySelector('.sw').onclick = () => { mv = true; draw(); };
       pop.querySelectorAll('[data-d]').forEach(b => b.onclick = () => pick(parse(b.dataset.d)));
+      if (birth) return;
       pop.querySelector('[data-q=today]').onclick = () => pick(today);
       pop.querySelector('[data-q=next1]').onclick = () => pick(new Date(today.getFullYear(), today.getMonth() + 1, 1));
     }

@@ -70,7 +70,7 @@ const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : u.name ? '�
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
 const KIND_NAME = { new: '新开365卡', renew: '365续卡', other: '其它', refund: '退货' };   // refund 2026-11-12 加：只给后台处理，不导表   // 2026-11-12 用户改的叫法
 const subDesc = (s) => s.kind === 'refund' ? '退货 ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + ' · ' + s.sdate + (s.note ? '（' + s.note + '）' : '') : s.kind === 'other' ? '其它（' + (s.note || '') + '）' : KIND_NAME[s.kind] + ' ' + (s.pkg || '') + (s.qty > 1 ? ' ×' + s.qty : '') + (s.kind === 'renew' ? ' · 原卡到期 ' : ' · ') + s.sdate +
-  (s.giver_phone ? ' · 送朋友：' + (s.giver_name || '') + ' ' + s.giver_phone + ' 送的' : '');
+  (s.giver_phone ? ' · 送朋友：' + (s.giver_name || '') + ' ' + s.giver_phone + ' 送的' : '') + (s.birth ? ' · 生日 ' + s.birth : '');
 
 /* ---- 会话 / 设备 ---- */
 const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
@@ -135,9 +135,16 @@ function checkSub(b) {
   const name = str(b.name, 30).replace(/[\r\n\t]/g, ' ');
   const store = str(b.store, 30);
   if (!store) throw bad('请选门店');
-  return { name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, staff_no, store };
+  // 会员生日（2026-11-12 用户：新开365卡加会员生日）。只有新开卡存；送朋友时是被送的人（卡在她名下）的生日
+  let birth = null;
+  if (kind === 'new' && str(b.birth, 10)) {
+    birth = str(b.birth, 10);
+    const bm = birth.match(/^(\d{4})-(\d{2})-(\d{2})$/), bd = bm && new Date(Date.UTC(+bm[1], +bm[2] - 1, +bm[3]));
+    if (!bd || bd.getUTCMonth() !== +bm[2] - 1 || +bm[1] < 1900 || bd.getTime() > Date.now()) throw bad(bd && bd.getTime() > Date.now() ? '生日不能晚于今天，请重选年份' : '生日不对');
+  }
+  return { name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, birth, staff_no, store };
 }
-const SUB_COLS = 'id, name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, staff_no, store, created, status, done_at, del_at, del_by, edit_n, edit_at';
+const SUB_COLS = 'id, name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, birth, staff_no, store, created, status, done_at, del_at, del_by, edit_n, edit_at';
 
 async function handle(req, env) {
   const url = new URL(req.url), p = url.pathname.replace(/^\/api/, ''), db = env.DB, now = Date.now();
@@ -222,11 +229,12 @@ async function handle(req, env) {
     const sno = str(b0.staff_no, 20);
     if (!(await storeStaff(db, str(b0.store, 30))).some((x) => x.no === sno)) throw bad('工号不是这家店的，请重新选');
     const s = checkSub(b0);
+    if (s.kind === 'new' && !s.birth) throw bad('请选会员生日');   // 新提交必填；后台改老记录不强求
     // 同一手机号有没处理的就别重复提交；退货和办卡分开算（刚办的卡当天退也要能提交）
     const dup = await db.prepare("SELECT id, staff_no, created FROM subs WHERE phone = ? AND status = 'pending' AND (kind = 'refund') = ?").bind(s.phone, s.kind === 'refund' ? 1 : 0).first();
     if (dup) throw bad('这个手机号已经提交过、还没处理（工号 ' + dup.staff_no + '），不用重复提交');
-    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.staff_no, s.store, now, u.did).run();
+    const r = await db.prepare('INSERT INTO subs (name, phone, sdate, kind, pkg, qty, note, giver_name, giver_phone, birth, staff_no, store, created, did) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.birth, s.staff_no, s.store, now, u.did).run();
     await audit(req, db, who(u), 'sub_add', '#' + r.meta.last_row_id + ' ' + s.store + ' 工号 ' + s.staff_no + '：' + (s.name || '未填姓名') + ' ' + s.phone + ' · ' + subDesc(s));
     return json({ ok: true, id: r.meta.last_row_id });
   }
@@ -238,7 +246,7 @@ async function handle(req, env) {
       const r = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE staff_no = ? AND store = ? AND created > ? AND status <> 'del' ORDER BY id DESC LIMIT 200").bind(no, st || '', now - 30 * DAY).all();
       return json({ subs: r.results });
     }
-    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
+    const pend = await db.prepare("SELECT s.id, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.birth, s.edit_n, s.edit_at, s.staff_no, s.store, s.created, s.status, s.lock_did, s.lock_at, d.label lock_dev FROM subs s LEFT JOIN devices d ON d.id = s.lock_did WHERE s.status = 'pending' ORDER BY s.id").all();
     pend.results.forEach((x) => { if (!x.lock_did || x.lock_at < now - LOCK_MS) { x.lock_did = null; x.lock_dev = null; } });
     const done = await db.prepare('SELECT ' + SUB_COLS + " FROM subs WHERE status <> 'pending' AND COALESCE(done_at, del_at) > ? ORDER BY COALESCE(done_at, del_at) DESC LIMIT 300").bind(now - 30 * DAY).all();
     return json({ pending: pend.results, recent: done.results, me: u.did });
@@ -300,7 +308,7 @@ async function handle(req, env) {
     if (!old) throw bad('这条提交不在了');
     if (old.status === 'del') throw bad('删掉的不能改');
     const n = checkSub(b);
-    const F = { name: '姓名', phone: '手机号', sdate: '日期', kind: '办卡', pkg: '套餐', qty: '数量', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', staff_no: '工号', store: '门店' };
+    const F = { name: '姓名', phone: '手机号', sdate: '日期', kind: '办卡', pkg: '套餐', qty: '数量', note: '备注', giver_name: '送的人', giver_phone: '送的人手机', birth: '生日', staff_no: '工号', store: '门店' };
     const show = (k, v) => k === 'kind' ? KIND_NAME[v] || v : (v == null || v === '' ? '空' : v);
     const diff = Object.keys(F).filter((k) => String(old[k] == null ? '' : old[k]) !== String(n[k] == null ? '' : n[k])).map((k) => F[k] + ' ' + show(k, old[k]) + ' → ' + show(k, n[k]));
     if (!diff.length) return json({ ok: true, same: true });
@@ -308,8 +316,8 @@ async function handle(req, env) {
     await db.batch([
       db.prepare('INSERT INTO sub_edits (sid, at, before, after, dev) VALUES (?, ?, ?, ?, ?)').bind(old.id, now,
         JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, old[k]]))), JSON.stringify(Object.fromEntries(Object.keys(F).map((k) => [k, n[k]]))), deviceLabel(req.headers.get('User-Agent'))),
-      db.prepare('UPDATE subs SET name = ?, phone = ?, sdate = ?, kind = ?, pkg = ?, qty = ?, note = ?, giver_name = ?, giver_phone = ?, staff_no = ?, store = ?, edit_n = COALESCE(edit_n, 0) + 1, edit_at = ? WHERE id = ?')
-        .bind(n.name, n.phone, n.sdate, n.kind, n.pkg, n.qty, n.note, n.giver_name, n.giver_phone, n.staff_no, n.store, now, old.id)
+      db.prepare('UPDATE subs SET name = ?, phone = ?, sdate = ?, kind = ?, pkg = ?, qty = ?, note = ?, giver_name = ?, giver_phone = ?, birth = ?, staff_no = ?, store = ?, edit_n = COALESCE(edit_n, 0) + 1, edit_at = ? WHERE id = ?')
+        .bind(n.name, n.phone, n.sdate, n.kind, n.pkg, n.qty, n.note, n.giver_name, n.giver_phone, n.birth, n.staff_no, n.store, now, old.id)
     ]);
     await audit(req, db, who(u), 'sub_edit', '#' + old.id + ' ' + (old.name || '') + ' ' + old.phone + ' 改了：' + diff.join('；'));
     return json({ ok: true });
