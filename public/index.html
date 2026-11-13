@@ -351,7 +351,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     </div>
     <p class="hint" id="rInfo" style="margin:12px 0"></p>
     <div class="rwrap"><div class="rprev" id="rPrev"></div>
-      <div class="rbtns"><button class="btn pri" id="rCopy" type="button">复制图片</button><button class="btn" id="rPng" type="button">下载图片</button><button class="btn" id="rXls" type="button">下载 Excel</button></div></div>
+      <div class="rbtns"><button class="btn pri" id="rCopy" type="button">复制图片</button><button class="btn" id="rPng" type="button">下载图片</button><button class="btn" id="rXls" type="button">下载 Excel</button><button class="btn" id="rSum" type="button">下载汇总表</button></div></div>
   </section>
 </div>
 
@@ -393,14 +393,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611132339"></script>
-<script src="report.js?v=202611132339"></script>
-<script src="xsel.js?v=202611132339"></script>
-<script src="datepick.js?v=202611132339"></script>
-<script src="api.js?v=202611132339"></script>
-<script src="vendor/xlsx.full.min.js?v=202611132339"></script>
-<script src="xls.js?v=202611132339"></script>
-<script src="gen.js?v=202611132339"></script>
+<script src="stores.js?v=202611132347"></script>
+<script src="report.js?v=202611132347"></script>
+<script src="xsel.js?v=202611132347"></script>
+<script src="datepick.js?v=202611132347"></script>
+<script src="api.js?v=202611132347"></script>
+<script src="vendor/xlsx.full.min.js?v=202611132347"></script>
+<script src="xls.js?v=202611132347"></script>
+<script src="gen.js?v=202611132347"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -985,6 +985,33 @@ $('#rXls').onclick = () => {
   logAct('report', '下载战报 Excel：' + $('#rInfo').textContent);
 };
 
+// 汇总表（2026-11-13 用户）：照手工登记表的 13 列，一单一行；日期 / 区域经理 / 门店 / 工号跟上面战报的筛选走
+const REWARD = { 1980: 100, 3980: 200 };   // 每份奖励；6980 / 19800 还没定，空着
+$('#rSum').onclick = async () => {
+  const r = Report365.range(RP);
+  let rows;
+  try { rows = (await api(`/summary?from=${r.from}&to=${r.to}`)).rows; } catch (e) { return toast(e.message); }
+  const mgr = $('#rMgr').value, store = $('#rStore').value, nos = ($('#rStaff').value || '').split(/[\s,，、]+/).filter(Boolean);   // 跟战报 compute 同一套筛选，数字要对得上（2026-11-13 用户）
+  rows = rows.filter(x => (!mgr || STORE_MGR[x.store] === mgr) && (!store || x.store === store) && (!nos.length || nos.indexOf(x.staff_no) >= 0));
+  if (!rows.length) return toast('这段时间没有单子');
+  const ymdN = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+  const serial = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? { date: Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000) } : null; };
+  const head = ['区域', '日期', '门店名称', '单号', '会员名称', '手机', '续卡日期', '开卡/续卡', '备注', '营业员', '数量', '套餐', '奖励'];
+  const body = rows.map(x => {
+    const no = ((x.note || '').match(/单号\s*(\d+)/) || [])[1] || '';
+    const note = [(x.note || '').replace(/xls补录/, '').replace(/单号\s*\d+/, '').trim(), x.giver_phone ? '送朋友：' + (x.giver_name || '') + ' ' + x.giver_phone + ' 送的' : ''].filter(Boolean).join('；');
+    const price = Number(((x.pkg || '').match(/(\d+)套餐/) || [])[1]) || null, q = x.qty || 1;
+    return [STORE_MGR[x.store] || '',   // 区域写区域经理真名（2026-11-13 用户：不用沫沫 / 晨科）
+      ymdN(x.created), x.store || '', no, x.name || '', x.phone || '',
+      x.kind === 'renew' ? serial(x.sdate) : null, x.kind === 'renew' ? '续卡' : x.kind === 'new' ? '开卡' : '', note,
+      x.staff_name || x.staff_no || '', q, price, price && REWARD[price] ? REWARD[price] * q : null];
+  });
+  const name = `套餐销售汇总_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`;
+  const fen = body.reduce((a, x) => a + x[10], 0);
+  download(new Blob([XLS.write(XLSX.CFB, [{ name: '汇总', widths: [8, 10, 14, 22, 10, 13, 11, 9, 22, 9, 6, 7, 6], rows: [head].concat(body) }])], { type: XLS_MIME }), name + '.xls').then(w => toast(`共 ${body.length} 单 ${fen} 份（跟战报${rData && rData.total === fen ? '对得上' : '的 ' + (rData ? rData.total : '?') + ' 份不一样，请告诉何俊'}）· 已存到${w}`));
+  logAct('report', '下载汇总表：' + Report365.iso(r.fromD) + ' ~ ' + Report365.iso(r.toD) + ' 共 ' + body.length + ' 单');
+};
+
 /* ---------- 操作记录 ---------- */
 const ACT = { sub_edit: '修改提交', sub_take: '接手处理', login: '登录', logout: '退出', login_fail: '密码输错', locked: '输错锁定', login_locked: '锁定中尝试', device_new: '新设备登录', device_kick: '设备被挤掉',
   device_remove: '移出设备', password: '改密码', sub_add: '店员提交', sub_del: '删除提交', sub_done: '标为已导出', sub_undo: '撤回已导出',
@@ -1026,6 +1053,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 23:39</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 23:47</span>
 </body>
 </html>

@@ -364,6 +364,14 @@ async function handle(req, env) {
     const r = await db.prepare("SELECT s.store, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name, s.kind, s.pkg, s.qty, s.created FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
     return json({ rows: r.results });
   }
+  // 汇总表（2026-11-13 用户：照他手工那张登记表——区域/日期/门店/单号/会员/手机/续卡日期/开卡续卡/备注/营业员/数量/套餐/奖励，能选日期）
+  // 跟战报同一个口径：按提交时间、不含删掉的、不含退货
+  if (p === '/summary' && req.method === 'GET') {
+    needOp();
+    const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
+    const r = await db.prepare("SELECT s.id, s.created, s.store, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
+    return json({ rows: r.results });
+  }
   // 页面上做的事（服务器看不到的）：导出、载入名单、下载模板
   if (p === '/log' && req.method === 'POST') {
     needOp();
