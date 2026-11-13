@@ -3,7 +3,7 @@
    每人 42 行代金券：
      12 行「365金卡洗脸巾2」：从开卡当月 1 号起按自然月推，每张 1 号到月底（mode='calendar'）
                              或从开卡日起每满一个月一段（mode='rolling'）
-     30 行「365金卡代金券」：开卡当天 → 一年后同一天
+     30 行「365金卡代金券」：开卡当天 → 一年后同一天（续卡：原卡到期日的第二天起，截至日同样顺延一天）
    券号 = 365 + 开卡年份后 2 位 + 手机号 + 序号 01~42（共 18 位），如 365 26 18968256111 01。
      2026-11-11 用户选的：网页会给多人在不同电脑上用，不联网也要保证不撞号；
      原来的 365001 连号只够 23 人，而且各电脑各编各的必撞。
@@ -49,6 +49,10 @@
       // 券号用这一份自己的起算年份，所以同一人连续几年的券号不会重
       const start = addMonths(p.date || opt.date, 12 * q), end = addMonths(start, 12);
       const wash = washPeriods(start, opt.mode);
+      // 续卡（2026-11-13 用户）：起算日是原卡到期日，代金券要从第二天开始（11/30 到期 → 12/1 起），
+      // 截至日也跟着顺延一天；洗脸巾规则不变，券号年份也照旧用起算日
+      const rn = (p.renew || opt.renew) && !p.noShift;
+      const cs = rn ? addDays(start, 1) : start, ce = rn ? addDays(end, 1) : end;
       let k = 1;
       const no = () => voucherNo(start, p.phone, k++);
       for (let i = 0; i < WASH; i++) {
@@ -57,7 +61,7 @@
       }
       for (let i = 0; i < CASH; i++) {
         rows.push({ who: p, act: '365金卡代金券', no: no(), val: 10, obj: '', objNo: '',
-          phone: p.phone, s: start, e: end, rule: '实收价', scene: '通用', min: 200 });
+          phone: p.phone, s: cs, e: ce, rule: '实收价', scene: '通用', min: 200 });
       }
     }
     return rows;

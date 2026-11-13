@@ -392,14 +392,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611121604"></script>
-<script src="report.js?v=202611121604"></script>
-<script src="xsel.js?v=202611121604"></script>
-<script src="datepick.js?v=202611121604"></script>
-<script src="api.js?v=202611121604"></script>
-<script src="vendor/xlsx.full.min.js?v=202611121604"></script>
-<script src="xls.js?v=202611121604"></script>
-<script src="gen.js?v=202611121604"></script>
+<script src="stores.js?v=202611131325"></script>
+<script src="report.js?v=202611131325"></script>
+<script src="xsel.js?v=202611131325"></script>
+<script src="datepick.js?v=202611131325"></script>
+<script src="api.js?v=202611131325"></script>
+<script src="vendor/xlsx.full.min.js?v=202611131325"></script>
+<script src="xls.js?v=202611131325"></script>
+<script src="gen.js?v=202611131325"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -464,8 +464,10 @@ function parse(text) {
     // 同一个手机号又出现：同一个顾客续了好几份，并到第一次那行，份数加上去，日期接着第一次往后续（2026-11-12 用户）
     if (seen[phone]) { const p0 = ok[seen[phone].k]; p0.qty += pqty; p0.lines.push(i + 1); return; }
     seen[phone] = { n: i + 1, k: ok.length };
-    if (prenew && !pdate) pdate = readDate($('#rdate'), nextMonth1);   // 写了续卡没写日期 → 按「续卡从哪天算」
-    ok.push(Object.assign({ name, phone, qty: pqty, lines: [i + 1] }, pdate ? { date: pdate } : {}, prenew ? { renew: true } : {}));
+    // 写了续卡没写日期 → 按「续卡从哪天算」；这个日子本身就是新卡第一天，代金券不再往后挪一天（noShift）
+    const dflt = prenew && !pdate;
+    if (dflt) pdate = readDate($('#rdate'), nextMonth1);
+    ok.push(Object.assign({ name, phone, qty: pqty, lines: [i + 1] }, pdate ? { date: pdate } : {}, prenew ? { renew: true } : {}, dflt ? { noShift: true } : {}));
   });
   return { ok, issues };
 }
@@ -981,6 +983,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.12 16:04</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 13:25</span>
 </body>
 </html>
