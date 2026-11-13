@@ -280,7 +280,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <div class="inbox">
       <div class="drop" id="drop">
         <div class="phd"><span><em>①</em>粘贴名单 <small class="saved">自动保存在本机，刷新不丢</small></span></div>
-        <textarea id="txt" spellcheck="false" placeholder="直接粘贴名单，每行一人：&#10;张三 18968256111&#10;李四，13800000000&#10;王五 13900000001 2026/12/1（某人日期不同，就在后面写日期）&#10;&#10;从 Excel 复制「姓名、手机号」两列粘进来就行，几百人也一次搞定。&#10;也可以把 Excel 文件直接拖到这里。"></textarea>
+        <textarea id="txt" spellcheck="false" placeholder="直接粘贴名单，每行一人：&#10;张三 18968256111&#10;李四，13800000000&#10;王五 13900000001 2026/11/30（续卡：写原卡到期日，代金券从第二天起）&#10;&#10;从 Excel 复制「姓名、手机号」两列粘进来就行，几百人也一次搞定。&#10;也可以把 Excel 文件直接拖到这里。"></textarea>
         <div class="dropmask">松手，读取这个 Excel</div>
       </div>
       <div class="parsed">
@@ -392,14 +392,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611131325"></script>
-<script src="report.js?v=202611131325"></script>
-<script src="xsel.js?v=202611131325"></script>
-<script src="datepick.js?v=202611131325"></script>
-<script src="api.js?v=202611131325"></script>
-<script src="vendor/xlsx.full.min.js?v=202611131325"></script>
-<script src="xls.js?v=202611131325"></script>
-<script src="gen.js?v=202611131325"></script>
+<script src="stores.js?v=202611131336"></script>
+<script src="report.js?v=202611131336"></script>
+<script src="xsel.js?v=202611131336"></script>
+<script src="datepick.js?v=202611131336"></script>
+<script src="api.js?v=202611131336"></script>
+<script src="vendor/xlsx.full.min.js?v=202611131336"></script>
+<script src="xls.js?v=202611131336"></script>
+<script src="gen.js?v=202611131336"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -451,7 +451,9 @@ function parse(text) {
     const qm = raw.match(/(?:[×xX*＊]\s*(\d{1,2})(?!\d))|(?:(?<!\d)(\d{1,2})\s*份)/);
     if (qm) { pqty = Math.max(1, +(qm[1] || qm[2])); raw = raw.replace(qm[0], ' '); }
     const KW = /(^|[\s,，;；、|])(新开卡|续卡)(?=$|[\s,，;；、|])/g;
-    const prenew = [...raw.matchAll(KW)].some(m => m[2] === '续卡');
+    const kws = [...raw.matchAll(KW)].map(m => m[2]);
+    // 2026-11-13 用户：只要填了日期就默认是续卡（日期 = 原卡到期日）；写了「新开卡」才按新开卡，没日期 = 今天新开卡
+    const prenew = kws.includes('续卡') || (!!pdate && !kws.includes('新开卡'));
     raw = raw.replace(KW, '$1 ');
     // 先找连着写的 11 位，再找 138-0000-1111 / 138 0000 1111 这种分段写法
     const m = raw.match(/(?<!\d)1\d{10}(?!\d)/) || raw.match(/(?<!\d)1\d{2}[\s-]\d{4}[\s-]\d{4}(?!\d)/);
@@ -496,7 +498,7 @@ function update() {
     return `<tr><td class="i">${i + 1}</td><td class="nm ${p.name ? '' : 'none'}">${esc(p.name || '未填姓名')}</td><td class="num">${p.phone}</td><td class="num" style="color:${p.date ? 'var(--pink-deep)' : 'var(--t3)'}" title="${p.date ? '这一行自己写的日期' : '用统一日期'}">${Gen.ymd(p.date || date)} 起${p.renew ? ' · 续卡' : ''}${p.qty > 1 ? ` · <b style="color:var(--pink-deep)">${p.qty} 份</b>，到 ${Gen.ymd(Gen.addMonths(p.date || date, 12 * p.qty))}` + (p.lines.length > 1 ? `（第 ${p.lines.join('、')} 行同一人，接着续）` : '') : ''}</td></tr>`;
   }).join('') + '</tbody></table>' : '<div class="empty">← 在左边粘贴名单<br>这里会列出认出来的每个人，方便核对</div>';
 
-  $('#dateSub').textContent = `今天开卡：代金券 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}；行里写了「续卡」没写日期的，按下月 1 号`;
+  $('#dateSub').textContent = `今天开卡：代金券 ${Gen.ymd(date)} – ${Gen.ymd(oneYear)}；行里写了日期 = 续卡（写原卡到期日，代金券从第二天起）`;
   $('#noSub').textContent = `如 ${Gen.voucherNo(date, '18968256111', 1)}，哪台电脑生成都不撞号；同一人同一年再开卡会重号`;
   const w = Gen.buildRows([{ phone: '0' }], opt);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
@@ -554,8 +556,8 @@ $('#file').onchange = e => { if (e.target.files[0]) readFile(e.target.files[0]);
 $('#tpl').onclick = () => {
   // 2026-11-11 用户：太复杂了 → 只留 姓名 / 手机号 / 日期 三列，日期不填 = 当天，填了按写的日期
   const sd = d => ({ date: Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5) });
-  const bytes = XLS.write(XLSX.CFB, [{ name: '名单', widths: [14, 16, 20], rows: [
-    ['姓名', '手机号', '日期（不填 = 当天）'],
+  const bytes = XLS.write(XLSX.CFB, [{ name: '名单', widths: [14, 16, 40], rows: [
+    ['姓名', '手机号', '原卡到期日（填了 = 续卡；不填 = 今天新开卡）'],
     ['示例-张三', '13800000001', null],
     ['示例-李四', '13800000002', sd(new Date(today.getFullYear(), today.getMonth() + 1, 1))],
   ] }]);
@@ -748,7 +750,7 @@ $('#eBox').onsubmit = async e => {
     // 已经载入名单的，名单里那一行跟着换
     if (!r.same && loaded[eCur.phone]) {
       const ph = $('#ePhone').value.replace(/\D/g, '');
-      $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : '', +$('#eQty').value > 1 ? '×' + (+$('#eQty').value) : ''].filter(Boolean).join(' ') : l).join('\n');
+      $('#txt').value = $('#txt').value.split('\n').map(l => l.replace(/\D/g, '').indexOf(eCur.phone) >= 0 ? [$('#eName').value.trim(), ph, sdYmd($('#eDate').value), eKind === 'renew' ? '续卡' : '新开卡', +$('#eQty').value > 1 ? '×' + (+$('#eQty').value) : ''].filter(Boolean).join(' ') : l).join('\n');
       delete loaded[eCur.phone]; if (!flat && !rf) loaded[ph] = eCur.id; saveLoaded(); update();
     }
     loadSubs();
@@ -764,7 +766,7 @@ function addToList(add) {
   const have = new Set(people.map(p => p.phone));
   add = add.filter(x => !have.has(x.phone));
   if (!add.length) return 0;
-  const lines = add.map(x => [x.name, x.phone, sdYmd(x.sdate), x.kind === 'renew' ? '续卡' : '', x.qty > 1 ? '×' + x.qty : ''].filter(Boolean).join(' '));
+  const lines = add.map(x => [x.name, x.phone, sdYmd(x.sdate), x.kind === 'renew' ? '续卡' : '新开卡', x.qty > 1 ? '×' + x.qty : ''].filter(Boolean).join(' '));
   const t = $('#txt').value.replace(/\s+$/, '');
   $('#txt').value = (t ? t + '\n' : '') + lines.join('\n');
   add.forEach(x => { loaded[x.phone] = x.id; });
@@ -983,6 +985,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 13:25</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.13 13:36</span>
 </body>
 </html>
