@@ -26,11 +26,14 @@
     return { from: a.getTime(), to: b.getTime(), title, fromD: a, toD: new Date(b - 864e5) };
   }
 
+  // 工号或名字（2026-11-14 用户：能搜店员名字）：数字 = 工号精确对上，别的 = 名字里含这几个字；几个词之间是「或」
+  function staffHit(x, nos) { return !nos.length || nos.some(k => x.staff_no === k || (!/^\d+$/.test(k) && (x.staff_name || '').indexOf(k) >= 0)); }
+
   // rows：/api/report 拿到的（store, staff_no, kind, created）。F = { mgr, store, staff, by }
   function compute(rows, F, r) {
     const nos = (F.staff || '').split(/[\s,，、]+/).filter(Boolean);
     const inScope = st => (!F.mgr || STORE_MGR[st] === F.mgr) && (!F.store || st === F.store);
-    const hit = rows.filter(x => inScope(x.store || '') && (!nos.length || nos.indexOf(x.staff_no) >= 0));
+    const hit = rows.filter(x => inScope(x.store || '') && staffHit(x, nos));
     const per = {};
     const add = (key, o) => { per[key] = per[key] || Object.assign({ n: 0, nw: 0, rn: 0, ot: 0 }, o); return per[key]; };
     // 按门店排时，范围里一张都没办的店也列出来（排在后面），一眼看到谁没动
@@ -52,7 +55,7 @@
     const W = x => x.kind === 'other' ? 1 : (x.qty || 1), sum = a => a.reduce((t, x) => t + W(x), 0);
     const total = sum(hit), nw = sum(hit.filter(x => x.kind === 'new')), ot = sum(hit.filter(x => x.kind === 'other'));
     const nStore = F.store ? 1 : STORES.reduce((s, [m, l]) => s + (!F.mgr || F.mgr === m ? l.length : 0), 0);
-    const scope = [F.store || (F.mgr ? `${F.mgr} · ${nStore} 家店` : `全部 ${nStore} 家店`), nos.length ? '工号 ' + nos.join('、') : ''].filter(Boolean).join(' · ');
+    const scope = [F.store || (F.mgr ? `${F.mgr} · ${nStore} 家店` : `全部 ${nStore} 家店`), nos.length ? nos.join('、') : ''].filter(Boolean).join(' · ');
     return { r, list, total, nw, rn: total - nw - ot, ot, scope, by: F.by };
   }
 
@@ -122,5 +125,5 @@
     return cv;
   }
 
-  window.Report365 = { range, compute, draw, iso };
+  window.Report365 = { range, compute, draw, iso, staffHit };
 })();

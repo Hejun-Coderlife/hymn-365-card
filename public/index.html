@@ -96,12 +96,34 @@ button,input,select,textarea{font:inherit;color:inherit}
 .rseg button{height:36px;display:inline-flex;align-items:center;justify-content:center}
 .rseg button{white-space:nowrap;flex:none}
 #rMode button,#rBy button{padding:0 16px}
-.rdate[hidden]{display:none}
+/* 时间（2026-11-14 用户：照会员助手「回访情况」那排）：浅灰底槽、选中是白块；自定义弹两个月并排的日历 */
+.fseg{position:relative;display:inline-flex;align-items:center;gap:2px;padding:3px;background:#F2F0EB;height:38px;box-sizing:border-box}
+.fseg > a{display:flex;align-items:center;height:32px;padding:0 14px;font-size:13px;color:var(--t3);cursor:pointer;white-space:nowrap;user-select:none}
+.fseg > a:hover{color:var(--t1)}
+.fseg > a.on{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.fseg.open > #rCusBtn{color:var(--t1)}
+.fseg .fpop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;padding:12px 14px 14px;background:#fff;border:1px solid var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.fseg .fch{font-size:12px;color:var(--t3);margin-bottom:8px;white-space:nowrap}
+.fseg .fch em{font-style:normal;color:var(--t1);font-weight:600;font-family:var(--num)}
+.fcal2{display:flex;align-items:flex-start;gap:18px}
+.fcal2 .fmo{width:238px}
+.fcal2 .fmt{text-align:center;font-size:13px;font-weight:600;margin:4px 0 6px}
+.fcal2 .fnav{width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--t2);cursor:pointer;margin-top:2px}
+.fcal2 .fnav:hover{background:var(--paper)}
+.fcal2 .fnav.off{color:var(--line-2);pointer-events:none}
+.fcw,.fcg{display:grid;grid-template-columns:repeat(7,1fr)}
+.fcw span{text-align:center;font-size:11px;color:var(--t3);padding:4px 0}
+.fcg a{height:32px;display:flex;align-items:center;justify-content:center;font-family:var(--num);font-size:14px;color:var(--t1);cursor:pointer}
+.fcg a:hover{outline:1px solid var(--ink);outline-offset:-1px}
+.fcg a.in{background:#F2F0EB}
+.fcg a.end{background:var(--ink);color:#fff}
+.fcg a.td{text-decoration:underline;text-underline-offset:4px}
+.fcg a.off{color:var(--line-2);pointer-events:none}
 .rseg button{padding:8px 18px}
 .rbar>input{border:1px solid var(--line-2);height:38px;box-sizing:border-box;padding:0 12px;font-size:13px;outline:none;background:#fff}
 .rbar>input:focus{border-color:var(--ink)}
 .rbar>input::placeholder{color:var(--t4)}
-.rbar>input{width:240px}
+.rbar>input{width:270px}
 .rdate{display:inline-flex;align-items:center;gap:8px}
 .rdate .dp-btn{border:1px solid var(--line-2);height:38px;box-sizing:border-box;padding:0 12px;font-size:15px;width:auto;white-space:nowrap;align-items:center}
 .rdate .dp-btn:hover{border-color:var(--ink)}
@@ -339,15 +361,13 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
     <p>按店员提交的时间统计办卡数，生成图片发群；删掉的提交不算</p></div></header>
   <section class="sec">
     <div class="rbar">
-      <div class="seg rseg" id="rMode"><button type="button" data-m="day">日</button><button type="button" data-m="week">周</button><button type="button" data-m="month">月</button><button type="button" data-m="year">年</button><button type="button" data-m="range">自选</button></div>
-      <span class="rdate" id="rOne"><input type="date" id="rDate"></span>
-      <span class="rdate" id="rTwo" hidden><input type="date" id="rFrom"><i>–</i><input type="date" id="rTo"></span>
+      <span class="fseg" id="rPer"><a data-p="today">今天</a><a data-p="yday">昨天</a><a data-p="d7">近7天</a><a data-p="d30">近30天</a><a data-p="month">本月</a><a data-p="custom" id="rCusBtn">自定义</a></span>
     </div>
     <div class="rbar">
       <div class="seg rseg" id="rBy"><button type="button" data-b="store">按门店排</button><button type="button" data-b="staff">按店员排</button></div>
       <select id="rMgr"><option value="">全部区域经理</option></select>
       <select id="rStore"><option value="">全部门店</option></select>
-      <input id="rStaff" placeholder="工号（可填几个，空格隔开）">
+      <input id="rStaff" placeholder="店员名字或工号（可填几个，空格隔开）">
     </div>
     <p class="hint" id="rInfo" style="margin:12px 0"></p>
     <div class="rwrap"><div class="rprev" id="rPrev"></div>
@@ -393,14 +413,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611141016"></script>
-<script src="report.js?v=202611141016"></script>
-<script src="xsel.js?v=202611141016"></script>
-<script src="datepick.js?v=202611141016"></script>
-<script src="api.js?v=202611141016"></script>
-<script src="vendor/xlsx.full.min.js?v=202611141016"></script>
-<script src="xls.js?v=202611141016"></script>
-<script src="gen.js?v=202611141016"></script>
+<script src="stores.js?v=202611141022"></script>
+<script src="report.js?v=202611141022"></script>
+<script src="xsel.js?v=202611141022"></script>
+<script src="datepick.js?v=202611141022"></script>
+<script src="api.js?v=202611141022"></script>
+<script src="vendor/xlsx.full.min.js?v=202611141022"></script>
+<script src="xls.js?v=202611141022"></script>
+<script src="gen.js?v=202611141022"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -929,8 +949,20 @@ function showPanel(v) {
 document.querySelectorAll('.nav a[data-panel]').forEach(a => a.onclick = () => showPanel(a.dataset.panel));
 
 /* ---------- 战报 ---------- */
-const RP = { mode: 'week', date: iso(today), from: iso(new Date(today.getFullYear(), today.getMonth(), 1)), to: iso(today), by: 'store' };
-try { Object.assign(RP, JSON.parse(localStorage.getItem('c365_report') || '{}'), { date: iso(today) }); } catch (e) {}
+const RP = { p: 'month', mode: 'range', from: '', to: '', by: 'store' };
+try { Object.assign(RP, JSON.parse(localStorage.getItem('c365_report') || '{}')); } catch (e) {}
+if (['today', 'yday', 'd7', 'd30', 'month', 'custom'].indexOf(RP.p) < 0) RP.p = 'month';   // 老的「日 / 周 / 月 / 年 / 自选」
+// 时间（2026-11-14 用户：改成会员助手那排「今天 / 昨天 / 近7天 / 近30天 / 本月 / 自定义」）。算成 from / to 交给 Report365.range（range 模式）
+const dAdd = (d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+function rPeriod() {
+  const t = iso(new Date()); let from = t, to = t;
+  if (RP.p === 'yday') from = to = dAdd(t, -1);
+  else if (RP.p === 'd7') from = dAdd(t, -6);
+  else if (RP.p === 'd30') from = dAdd(t, -29);
+  else if (RP.p === 'month') from = t.slice(0, 8) + '01';
+  else if (RP.p === 'custom') { from = RP.from || t.slice(0, 8) + '01'; to = RP.to || t; if (to > t) to = t; if (from > to) [from, to] = [to, from]; }
+  RP.mode = 'range'; RP.from = from; RP.to = to;
+}
 $('#rMgr').insertAdjacentHTML('beforeend', STORES.map(([m]) => `<option>${m}</option>`).join(''));
 function rFillStores() {
   const m = $('#rMgr').value, cur = $('#rStore').value;
@@ -938,14 +970,13 @@ function rFillStores() {
   if (STORE_MGR[cur] && (!m || STORE_MGR[cur] === m)) $('#rStore').value = cur;
 }
 $('#rMgr').value = RP.mgr || ''; rFillStores(); $('#rStore').value = RP.store || ''; $('#rStaff').value = RP.staff || '';
-$('#rDate').value = RP.date; $('#rFrom').value = RP.from; $('#rTo').value = RP.to;
 let rCanvas = null, rData = null, rLogo = null, rSeq = 0;
-function rSave() { try { localStorage.setItem('c365_report', JSON.stringify({ mode: RP.mode, by: RP.by, from: RP.from, to: RP.to, mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value })); } catch (e) {} }
+function rSave() { try { localStorage.setItem('c365_report', JSON.stringify({ p: RP.p, by: RP.by, from: RP.from, to: RP.to, mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value })); } catch (e) {} }
 async function rRender() {
-  document.querySelectorAll('#rMode button').forEach(b => b.classList.toggle('on', b.dataset.m === RP.mode));
+  rPeriod();
+  document.querySelectorAll('#rPer > a').forEach(a => a.classList.toggle('on', a.dataset.p === RP.p));
+  $('#rCusBtn').textContent = RP.p === 'custom' ? (RP.from === RP.to ? rMd(RP.from) : rMd(RP.from) + ' – ' + rMd(RP.to)) : '自定义';
   document.querySelectorAll('#rBy button').forEach(b => b.classList.toggle('on', b.dataset.b === RP.by));
-  $('#rOne').hidden = RP.mode === 'range'; $('#rTwo').hidden = RP.mode !== 'range';
-  RP.date = $('#rDate').value || iso(today); RP.from = $('#rFrom').value; RP.to = $('#rTo').value;
   rSave();
   const r = Report365.range(RP), seq = ++rSeq;
   $('#rInfo').textContent = '统计中…';
@@ -959,12 +990,61 @@ async function rRender() {
   $('#rPrev').innerHTML = ''; $('#rPrev').appendChild(rCanvas);
 }
 const rName = () => { const r = rData.r; return `套餐销售战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
-document.querySelectorAll('#rMode button').forEach(b => b.onclick = () => { RP.mode = b.dataset.m; rRender(); });
+const rMd = d => d.slice(5, 7) + '/' + d.slice(8, 10);
+// 自定义：两个月并排的月历，点开始日、再点结束日就生效；同一天点两下 = 只看那天（同会员助手 admin.js calOpen）
+let CAL = null;
+const ymAdd = (ym, n) => { let y = +ym.slice(0, 4), m = +ym.slice(5, 7) + n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + pad2(m); };
+function calOpen() { const t = iso(new Date()); CAL = { a: RP.p === 'custom' ? RP.from : '', b: RP.p === 'custom' ? RP.to : '', h: '', m: (RP.p === 'custom' ? RP.to : t).slice(0, 7) }; $('#rPer').classList.add('open'); calDraw(); }
+function calClose() { const p = $('#rPop'); if (p) p.remove(); $('#rPer').classList.remove('open'); CAL = null; }
+function calMonth(ym, t) {
+  const y = +ym.slice(0, 4), mo = +ym.slice(5, 7), lead = (new Date(y, mo - 1, 1).getDay() + 6) % 7, n = new Date(y, mo, 0).getDate();
+  let lo = CAL.a, hi = CAL.b || CAL.a, cells = '';
+  if (CAL.a && !CAL.b && CAL.h) { lo = CAL.h < CAL.a ? CAL.h : CAL.a; hi = CAL.h < CAL.a ? CAL.a : CAL.h; }   // 选了开始日，鼠标移到哪预览到哪
+  for (let i = 0; i < lead; i++) cells += '<span></span>';
+  for (let i = 1; i <= n; i++) {
+    const d = ym + '-' + pad2(i);
+    cells += `<a data-d="${d}" class="${d > t ? 'off' : ''}${d === t ? ' td' : ''}${lo && d >= lo && d <= hi ? (d === lo || d === hi ? ' end' : ' in') : ''}">${i}</a>`;
+  }
+  return `<div class="fmo"><div class="fmt">${y} 年 ${mo} 月</div><div class="fcw"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="fcg">${cells}</div></div>`;
+}
+function calDraw() {
+  const t = iso(new Date()), right = CAL.m, left = ymAdd(right, -1);
+  const tip = CAL.a && !CAL.b ? `<em>${rMd(CAL.a)} – ${CAL.h && CAL.h !== CAL.a ? rMd(CAL.h) : '?'}</em>　再点结束那天（只看这一天就再点一次）`
+    : CAL.a ? `<em>${rMd(CAL.a)}${CAL.b !== CAL.a ? ' – ' + rMd(CAL.b) : ''}</em>　重新选：点开始那天` : '先点开始那天，再点结束那天';
+  let p = $('#rPop');
+  if (!p) { p = document.createElement('div'); p.className = 'fpop'; p.id = 'rPop'; $('#rPer').appendChild(p); }
+  p.innerHTML = `<div class="fch">${tip}</div><div class="fcal2"><a class="fnav" data-mv="-1">‹</a>${calMonth(left, t)}${calMonth(right, t)}<a class="fnav${right >= t.slice(0, 7) ? ' off' : ''}" data-mv="1">›</a></div>`;
+}
+$('#rPer').addEventListener('click', e => {
+  const a = e.target.closest('#rPer > a[data-p]');
+  if (a) {
+    e.stopPropagation();
+    if (a.dataset.p === 'custom') { if (CAL) calClose(); else calOpen(); return; }
+    calClose(); RP.p = a.dataset.p; rRender(); return;
+  }
+  if (!CAL || !e.target.closest('#rPop')) return;
+  e.stopPropagation();
+  const mv = e.target.closest('[data-mv]');
+  if (mv && !mv.classList.contains('off')) { CAL.m = ymAdd(CAL.m, Number(mv.dataset.mv)); calDraw(); return; }
+  const dc = e.target.closest('[data-d]');
+  if (dc && !dc.classList.contains('off')) {
+    const d = dc.dataset.d;
+    if (!CAL.a || CAL.b) { CAL.a = d; CAL.b = ''; CAL.h = d; calDraw(); return; }
+    if (d < CAL.a) { CAL.b = CAL.a; CAL.a = d; } else CAL.b = d;
+    RP.p = 'custom'; RP.from = CAL.a; RP.to = CAL.b; calClose(); rRender();
+  }
+});
+$('#rPer').addEventListener('mouseover', e => {
+  if (!CAL || !CAL.a || CAL.b) return;
+  const dc = e.target.closest('#rPop [data-d]'); if (!dc || dc.classList.contains('off') || CAL.h === dc.dataset.d) return;
+  CAL.h = dc.dataset.d; calDraw();
+});
+document.addEventListener('click', e => { if (CAL && !e.target.closest('#rPer')) calClose(); });
+document.addEventListener('keydown', e => { if (CAL && e.key === 'Escape') calClose(); });
 document.querySelectorAll('#rBy button').forEach(b => b.onclick = () => { RP.by = b.dataset.b; rRender(); });
 $('#rMgr').onchange = () => { rFillStores(); rRender(); };
 $('#rStore').onchange = rRender;
 let rT; $('#rStaff').oninput = () => { clearTimeout(rT); rT = setTimeout(rRender, 400); };
-['#rDate', '#rFrom', '#rTo'].forEach(k => $(k).addEventListener('input', rRender));
 $('#rCopy').onclick = () => {
   if (!rCanvas) return;
   if (!navigator.clipboard || !window.ClipboardItem) return toast('这个浏览器不支持复制图片，请用「下载图片」');
@@ -992,7 +1072,7 @@ $('#rXls').onclick = async () => {
   let rows;
   try { rows = (await api(`/summary?from=${r.from}&to=${r.to}`)).rows; } catch (e) { return toast(e.message); }
   const mgr = $('#rMgr').value, store = $('#rStore').value, nos = ($('#rStaff').value || '').split(/[\s,，、]+/).filter(Boolean);   // 跟战报 compute 同一套筛选，数字要对得上（2026-11-13 用户）
-  rows = rows.filter(x => (!mgr || STORE_MGR[x.store] === mgr) && (!store || x.store === store) && (!nos.length || nos.indexOf(x.staff_no) >= 0));
+  rows = rows.filter(x => (!mgr || STORE_MGR[x.store] === mgr) && (!store || x.store === store) && Report365.staffHit(x, nos));
   if (!rows.length) return toast('这段时间没有单子');
   const ymdN = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
   const serial = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? { date: Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000) } : null; };
@@ -1059,6 +1139,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.14 10:16</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.14 10:22</span>
 </body>
 </html>
