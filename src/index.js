@@ -224,7 +224,11 @@ async function handle(req, env) {
   // 工号下拉：店员看登录时选的那家店的员工（+ 这家店的区域经理）；操作员可以 ?store= 看任意店
   if (p === '/staff' && req.method === 'GET') {
     // ?all=1：所有门店的人（2026-11-13 用户：工号下拉加「其它」，能选所有人、能搜，比如别的店来帮忙的人）
-    if (url.searchParams.get('all')) return json({ staff: await allStaff(db) });
+    // 店员拿到的不带门店（2026-11-14 用户：别让所有人看到谁是哪家店的），按工号排；后台照旧带门店（战报店员下拉、修改弹窗要分组）
+    if (url.searchParams.get('all')) {
+      const all = await allStaff(db);
+      return json({ staff: isOp ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
+    }
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
     if (!st) return json({ staff: [] });
     return json({ staff: await storeStaff(db, st) });

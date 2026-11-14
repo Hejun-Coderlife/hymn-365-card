@@ -126,15 +126,15 @@ h2{font-size:22px;font-weight:500;letter-spacing:.05em;margin:24px 0 4px}
     <div id="items"><div class="empty">选了工号就能看到自己提交过的</div></div>
   </div>
   <!-- 版本号（2026-11-12 用户：右上角碍眼，放到页面最底下，同 VIP 店员版）：部署时 bump.sh 写入 -->
-  <div style="margin:36px 0 8px;text-align:center;font-size:11px;letter-spacing:.05em;color:var(--t4);position:relative;z-index:1"><span id="verB">版本 2026.11.14 10:59</span></div>
+  <div style="margin:36px 0 8px;text-align:center;font-size:11px;letter-spacing:.05em;color:var(--t4);position:relative;z-index:1"><span id="verB">版本 2026.11.14 12:18</span></div>
 </div>
 
-<script src="fx.js?v=202611141059"></script>
+<script src="fx.js?v=202611141218"></script>
 <script>try { hymnBgFx({ count: 460, alpha: 0.9 }); } catch (e) {}   // 背景竖向光丝（赫眉粉系），照抖音看板登录页</script>
-<script src="stores.js?v=202611141059"></script>
-<script src="xsel.js?v=202611141059"></script>
-<script src="datepick.js?v=202611141059"></script>
-<script src="api.js?v=202611141059"></script>
+<script src="stores.js?v=202611141218"></script>
+<script src="xsel.js?v=202611141218"></script>
+<script src="datepick.js?v=202611141218"></script>
+<script src="api.js?v=202611141218"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));
@@ -262,10 +262,10 @@ async function loadStaff() {
   const { staff } = await api(IS_OP ? '/staff?store=' + encodeURIComponent(STORE) : '/staff');
   let all = [];
   try { all = (await api('/staff?all=1')).staff.filter(x => !staff.some(y => y.no === x.no)); } catch (e) {}
-  const by = {}; all.forEach(x => (by[x.store] = by[x.store] || []).push(x));
+  all.sort((a, b) => (a.no < b.no ? -1 : 1));   // 不分门店、不显示店名（2026-11-14 用户：别让所有人看到谁是哪家店的）
   $('#no').innerHTML = '<option value="">选你的工号</option>' + staff.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('') +
     (all.length ? `<option value="${OTHER}">其它（别的店的人）</option>` : '') +
-    Object.keys(by).map(st => `<optgroup label="${esc(st)}" data-more="1">${by[st].map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}　· ${esc(st)}</option>`).join('')}</optgroup>`).join('');
+    (all.length ? `<optgroup label="别的店的人" data-more="1">${all.map(x => `<option value="${esc(x.no)}">${esc(x.no)}　${esc(x.name || '')}</option>`).join('')}</optgroup>` : '');
   const keep = (sv.nos || {})[STORE];
   $('#no').value = keep && keep !== OTHER && [...$('#no').options].some(o => o.value === keep) ? keep : '';
   load();

@@ -55,7 +55,7 @@
     const nOpt = items.filter(x => !x.g).length;
     const mask = document.createElement('div'); mask.className = 'xs-mask';
     const pop = document.createElement('div'); pop.className = 'xs-pop';
-    pop.innerHTML = (nOpt > 10 ? `<input class="xs-q" placeholder="${opt.more ? '搜名字、工号或门店' : '搜索'}">` : '') + '<div class="xs-list"></div>';
+    pop.innerHTML = (nOpt > 10 ? `<input class="xs-q" placeholder="${opt.more ? '搜名字或工号' : '搜索'}">` : '') + '<div class="xs-list"></div>';
     const list = pop.querySelector('.xs-list'), q = pop.querySelector('.xs-q');
     const close = () => { mask.remove(); pop.remove(); btn.classList.remove('open'); };
     const pick = v => { sel.value = v; paint(); sel.dispatchEvent(new Event('change', { bubbles: true })); close(); };
