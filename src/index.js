@@ -369,7 +369,7 @@ async function handle(req, env) {
   if (p === '/summary' && req.method === 'GET') {
     needOp();
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
-    const r = await db.prepare("SELECT s.id, s.created, s.store, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
+    const r = await db.prepare("SELECT s.id, s.created, s.store, s.name, s.phone, s.sdate, s.kind, s.pkg, s.qty, s.note, s.giver_name, s.giver_phone, s.birth, s.status, s.edit_n, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
     return json({ rows: r.results });
   }
   // 页面上做的事（服务器看不到的）：导出、载入名单、下载模板
