@@ -367,7 +367,7 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
       <div class="seg rseg" id="rBy"><button type="button" data-b="store">按门店排</button><button type="button" data-b="staff">按店员排</button></div>
       <select id="rMgr"><option value="">全部区域经理</option></select>
       <select id="rStore"><option value="">全部门店</option></select>
-      <input id="rStaff" placeholder="店员名字或工号（可填几个，空格隔开）">
+      <select id="rStaff"><option value="">全部店员</option></select>
     </div>
     <p class="hint" id="rInfo" style="margin:12px 0"></p>
     <div class="rwrap"><div class="rprev" id="rPrev"></div>
@@ -413,14 +413,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611141022"></script>
-<script src="report.js?v=202611141022"></script>
-<script src="xsel.js?v=202611141022"></script>
-<script src="datepick.js?v=202611141022"></script>
-<script src="api.js?v=202611141022"></script>
-<script src="vendor/xlsx.full.min.js?v=202611141022"></script>
-<script src="xls.js?v=202611141022"></script>
-<script src="gen.js?v=202611141022"></script>
+<script src="stores.js?v=202611141026"></script>
+<script src="report.js?v=202611141026"></script>
+<script src="xsel.js?v=202611141026"></script>
+<script src="datepick.js?v=202611141026"></script>
+<script src="api.js?v=202611141026"></script>
+<script src="vendor/xlsx.full.min.js?v=202611141026"></script>
+<script src="xls.js?v=202611141026"></script>
+<script src="gen.js?v=202611141026"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -969,7 +969,18 @@ function rFillStores() {
   $('#rStore').innerHTML = '<option value="">全部门店</option>' + STORES.filter(([k]) => !m || k === m).map(([k, l]) => `<optgroup label="${k}">${l.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join('');
   if (STORE_MGR[cur] && (!m || STORE_MGR[cur] === m)) $('#rStore').value = cur;
 }
-$('#rMgr').value = RP.mgr || ''; rFillStores(); $('#rStore').value = RP.store || ''; $('#rStaff').value = RP.staff || '';
+$('#rMgr').value = RP.mgr || ''; rFillStores(); $('#rStore').value = RP.store || '';
+// 店员下拉（2026-11-14 用户：跟门店一样既能下拉又能搜）：按门店分组，跟着上面的区域经理 / 门店缩小；值 = 名字（战报按名字并人）
+let rStaffAll = [];
+function rFillStaff() {
+  const m = $('#rMgr').value, st = $('#rStore').value, cur = RP.staff != null ? RP.staff : $('#rStaff').value, by = {};
+  rStaffAll.forEach(x => { if ((!st || x.store === st) && (!m || STORE_MGR[x.store] === m || x.store === '后台')) (by[x.store] = by[x.store] || []).push(x); });
+  if (st || m) delete by['后台'];
+  $('#rStaff').innerHTML = '<option value="">全部店员</option>' + Object.keys(by).map(k => `<optgroup label="${esc(k)}">${by[k].map(x => `<option value="${esc(x.name)}">${esc(x.name)} · ${esc(x.no)}</option>`).join('')}</optgroup>`).join('');
+  $('#rStaff').value = cur; if ($('#rStaff').value !== cur) $('#rStaff').value = '';
+}
+api('/staff?all=1').then(d => { rStaffAll = d.staff || []; const had = RP.staff; rFillStaff(); RP.staff = null;   // 记住的店员只在第一次填下拉时用
+  if (had && $('#rStaff').value !== had && /view=report/.test(location.hash)) rRender(); }).catch(() => {});
 let rCanvas = null, rData = null, rLogo = null, rSeq = 0;
 function rSave() { try { localStorage.setItem('c365_report', JSON.stringify({ p: RP.p, by: RP.by, from: RP.from, to: RP.to, mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value })); } catch (e) {} }
 async function rRender() {
@@ -1042,9 +1053,9 @@ $('#rPer').addEventListener('mouseover', e => {
 document.addEventListener('click', e => { if (CAL && !e.target.closest('#rPer')) calClose(); });
 document.addEventListener('keydown', e => { if (CAL && e.key === 'Escape') calClose(); });
 document.querySelectorAll('#rBy button').forEach(b => b.onclick = () => { RP.by = b.dataset.b; rRender(); });
-$('#rMgr').onchange = () => { rFillStores(); rRender(); };
-$('#rStore').onchange = rRender;
-let rT; $('#rStaff').oninput = () => { clearTimeout(rT); rT = setTimeout(rRender, 400); };
+$('#rMgr').onchange = () => { rFillStores(); rFillStaff(); rRender(); };
+$('#rStore').onchange = () => { rFillStaff(); rRender(); };
+$('#rStaff').onchange = rRender;
 $('#rCopy').onclick = () => {
   if (!rCanvas) return;
   if (!navigator.clipboard || !window.ClipboardItem) return toast('这个浏览器不支持复制图片，请用「下载图片」');
@@ -1071,7 +1082,7 @@ $('#rXls').onclick = async () => {
   const r = Report365.range(RP);
   let rows;
   try { rows = (await api(`/summary?from=${r.from}&to=${r.to}`)).rows; } catch (e) { return toast(e.message); }
-  const mgr = $('#rMgr').value, store = $('#rStore').value, nos = ($('#rStaff').value || '').split(/[\s,，、]+/).filter(Boolean);   // 跟战报 compute 同一套筛选，数字要对得上（2026-11-13 用户）
+  const mgr = $('#rMgr').value, store = $('#rStore').value, nos = $('#rStaff').value ? [$('#rStaff').value] : [];   // 跟战报 compute 同一套筛选，数字要对得上（2026-11-13 用户）
   rows = rows.filter(x => (!mgr || STORE_MGR[x.store] === mgr) && (!store || x.store === store) && Report365.staffHit(x, nos));
   if (!rows.length) return toast('这段时间没有单子');
   const ymdN = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
@@ -1139,6 +1150,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.14 10:22</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.14 10:26</span>
 </body>
 </html>

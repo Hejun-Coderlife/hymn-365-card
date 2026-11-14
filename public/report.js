@@ -26,12 +26,12 @@
     return { from: a.getTime(), to: b.getTime(), title, fromD: a, toD: new Date(b - 864e5) };
   }
 
-  // 工号或名字（2026-11-14 用户：能搜店员名字）：数字 = 工号精确对上，别的 = 名字里含这几个字；几个词之间是「或」
-  function staffHit(x, nos) { return !nos.length || nos.some(k => x.staff_no === k || (!/^\d+$/.test(k) && (x.staff_name || '').indexOf(k) >= 0)); }
+  // 店员筛选（2026-11-14 用户：下拉选店员）：值是名字，名字完全一样的都算（同一人在几家店 / 几个工号并在一起）；也认工号
+  function staffHit(x, nos) { return !nos.length || nos.some(k => x.staff_no === k || x.staff_name === k); }
 
   // rows：/api/report 拿到的（store, staff_no, kind, created）。F = { mgr, store, staff, by }
   function compute(rows, F, r) {
-    const nos = (F.staff || '').split(/[\s,，、]+/).filter(Boolean);
+    const nos = F.staff ? [F.staff] : [];
     const inScope = st => (!F.mgr || STORE_MGR[st] === F.mgr) && (!F.store || st === F.store);
     const hit = rows.filter(x => inScope(x.store || '') && staffHit(x, nos));
     const per = {};
