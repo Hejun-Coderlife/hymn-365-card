@@ -102,6 +102,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .fseg > a:hover{color:var(--t1)}
 .fseg > a.on{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .fseg.open > #rCusBtn{color:var(--t1)}
+/* 自定义弹框开着时，高亮在「自定义」上，不留在原来那档（2026-11-14 用户：365 那里也有同样的问题） */
+.fseg.open > a.on{background:transparent;box-shadow:none;font-weight:400;color:var(--t3)}
+.fseg.open > #rCusBtn{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .fseg .fpop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;padding:12px 14px 14px;background:#fff;border:1px solid var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.08)}
 .fseg .fch{font-size:12px;color:var(--t3);margin-bottom:8px;white-space:nowrap}
 .fseg .fch em{font-style:normal;color:var(--t1);font-weight:600;font-family:var(--num)}
@@ -118,6 +121,18 @@ button,input,select,textarea{font:inherit;color:inherit}
 .fcg a.in{background:#F2F0EB}
 .fcg a.end{background:var(--ink);color:#fff}
 .fcg a.td{text-decoration:underline;text-underline-offset:4px}
+/* 自定义改成直接编辑数字（2026-11-14 用户） */
+.dedit{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.dedit b{font-weight:400;color:var(--t3);font-size:13px}
+.dgrp{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line-2);padding:4px 8px;height:38px;box-sizing:border-box}
+.dgrp:focus-within{border-color:var(--ink)}
+.dgrp .dn{width:2.2em;border:0;outline:0;padding:2px 0;text-align:center;font-family:var(--num);font-size:16px;color:var(--t1);background:transparent}
+.dgrp .dn.y{width:3.4em}
+.dgrp .dn:focus{background:#F2F0EB}
+.dgrp i{font-style:normal;font-size:12px;color:var(--t3)}
+.dok{height:38px;padding:0 18px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-size:13px;cursor:pointer}
+.derr{font-size:12px;color:#B9808B;min-height:16px;margin-top:6px}
+@media (max-width:700px){ .dedit{flex-wrap:wrap} .fseg .fpop{left:auto;right:0;max-width:92vw} }
 .fcg a.off{color:var(--line-2);pointer-events:none}
 .rseg button{padding:8px 18px}
 .rbar>input{border:1px solid var(--line-2);height:38px;box-sizing:border-box;padding:0 12px;font-size:13px;outline:none;background:#fff}
@@ -413,14 +428,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611141218"></script>
-<script src="report.js?v=202611141218"></script>
-<script src="xsel.js?v=202611141218"></script>
-<script src="datepick.js?v=202611141218"></script>
-<script src="api.js?v=202611141218"></script>
-<script src="vendor/xlsx.full.min.js?v=202611141218"></script>
-<script src="xls.js?v=202611141218"></script>
-<script src="gen.js?v=202611141218"></script>
+<script src="stores.js?v=202611161721"></script>
+<script src="report.js?v=202611161721"></script>
+<script src="xsel.js?v=202611161721"></script>
+<script src="datepick.js?v=202611161721"></script>
+<script src="api.js?v=202611161721"></script>
+<script src="vendor/xlsx.full.min.js?v=202611161721"></script>
+<script src="xls.js?v=202611161721"></script>
+<script src="gen.js?v=202611161721"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -989,11 +1004,15 @@ async function rRender() {
   $('#rCusBtn').textContent = RP.p === 'custom' ? (RP.from === RP.to ? rMd(RP.from) : rMd(RP.from) + ' – ' + rMd(RP.to)) : '自定义';
   document.querySelectorAll('#rBy button').forEach(b => b.classList.toggle('on', b.dataset.b === RP.by));
   rSave();
-  const r = Report365.range(RP), seq = ++rSeq;
+  let r = Report365.range(RP); const seq = ++rSeq;
   $('#rInfo').textContent = '统计中…';
   let rows;
-  try { rows = (await api(`/report?from=${r.from}&to=${r.to}`)).rows; } catch (e) { $('#rInfo').textContent = e.message; return; }
+  let first = null;
+  try { const d = await api(`/report?from=${r.from}&to=${r.to}`); rows = d.rows; first = d.first; } catch (e) { $('#rInfo').textContent = e.message; return; }
   if (seq !== rSeq) return;
+  // 选的区间比有数据的第一天还早，就从有数据那天算（2026-11-14 用户：比如点了很大的一个日期区间）：标题、图片、文件名都跟着变
+  if (first) { const fd = iso(new Date(first)); if (r.from < new Date(fd + 'T00:00:00').getTime() && fd <= iso(r.toD)) {   // 整段都在有数据之前就不抬，免得开始晚于结束
+    r = Report365.range(Object.assign({}, RP, { mode: 'range', from: fd, to: iso(r.toD) })); if (RP.p === 'custom') { RP.from = fd; rSave(); $('#rCusBtn').textContent = RP.from === RP.to ? rMd(RP.from) : rMd(RP.from) + ' – ' + rMd(RP.to); } } }
   rData = Report365.compute(rows, { mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value, by: RP.by }, r);
   $('#rInfo').textContent = `${Gen.ymd(r.fromD)} ~ ${Gen.ymd(r.toD)} · ${rData.scope} · 共 ${rData.total} 份`;
   if (!rLogo) rLogo = await new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = 'logo-ink.png'; });
@@ -1002,29 +1021,39 @@ async function rRender() {
 }
 const rName = () => { const r = rData.r; return `套餐销售战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
 const rMd = d => d.slice(5, 7) + '/' + d.slice(8, 10);
-// 自定义：两个月并排的月历，点开始日、再点结束日就生效；同一天点两下 = 只看那天（同会员助手 admin.js calOpen）
+// 自定义（2026-11-14 用户：改成直接编辑数字，不要点日历选）：开始、结束各一组「年 月 日」数字框，点进去整格选中、直接打字就替换，
+// 打满自动跳下一格，↑↓ 加减 1；回车或「确定」生效，结束日不能超过今天、开始晚于结束会自动对调
 let CAL = null;
-const ymAdd = (ym, n) => { let y = +ym.slice(0, 4), m = +ym.slice(5, 7) + n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + pad2(m); };
-function calOpen() { const t = iso(new Date()); CAL = { a: RP.p === 'custom' ? RP.from : '', b: RP.p === 'custom' ? RP.to : '', h: '', m: (RP.p === 'custom' ? RP.to : t).slice(0, 7) }; $('#rPer').classList.add('open'); calDraw(); }
-function calClose() { const p = $('#rPop'); if (p) p.remove(); $('#rPer').classList.remove('open'); CAL = null; }
-function calMonth(ym, t) {
-  const y = +ym.slice(0, 4), mo = +ym.slice(5, 7), lead = (new Date(y, mo - 1, 1).getDay() + 6) % 7, n = new Date(y, mo, 0).getDate();
-  let lo = CAL.a, hi = CAL.b || CAL.a, cells = '';
-  if (CAL.a && !CAL.b && CAL.h) { lo = CAL.h < CAL.a ? CAL.h : CAL.a; hi = CAL.h < CAL.a ? CAL.a : CAL.h; }   // 选了开始日，鼠标移到哪预览到哪
-  for (let i = 0; i < lead; i++) cells += '<span></span>';
-  for (let i = 1; i <= n; i++) {
-    const d = ym + '-' + pad2(i);
-    cells += `<a data-d="${d}" class="${d > t ? 'off' : ''}${d === t ? ' td' : ''}${lo && d >= lo && d <= hi ? (d === lo || d === hi ? ' end' : ' in') : ''}">${i}</a>`;
-  }
-  return `<div class="fmo"><div class="fmt">${y} 年 ${mo} 月</div><div class="fcw"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="fcg">${cells}</div></div>`;
-}
-function calDraw() {
-  const t = iso(new Date()), right = CAL.m, left = ymAdd(right, -1);
-  const tip = CAL.a && !CAL.b ? `<em>${rMd(CAL.a)} – ${CAL.h && CAL.h !== CAL.a ? rMd(CAL.h) : '?'}</em>　再点结束那天（只看这一天就再点一次）`
-    : CAL.a ? `<em>${rMd(CAL.a)}${CAL.b !== CAL.a ? ' – ' + rMd(CAL.b) : ''}</em>　重新选：点开始那天` : '先点开始那天，再点结束那天';
+function calOpen() {
+  const t = iso(new Date()), f = RP.p === 'custom' ? RP.from : t.slice(0, 8) + '01', e = RP.p === 'custom' ? RP.to : t;
+  CAL = true; $('#rPer').classList.add('open');
+  const grp = (k, d) => `<span class="dgrp" data-k="${k}"><input class="dn y" maxlength="4" inputmode="numeric" value="${d.slice(0, 4)}"><i>年</i><input class="dn" maxlength="2" inputmode="numeric" value="${+d.slice(5, 7)}"><i>月</i><input class="dn" maxlength="2" inputmode="numeric" value="${+d.slice(8, 10)}"><i>日</i></span>`;
   let p = $('#rPop');
   if (!p) { p = document.createElement('div'); p.className = 'fpop'; p.id = 'rPop'; $('#rPer').appendChild(p); }
-  p.innerHTML = `<div class="fch">${tip}</div><div class="fcal2"><a class="fnav" data-mv="-1">‹</a>${calMonth(left, t)}${calMonth(right, t)}<a class="fnav${right >= t.slice(0, 7) ? ' off' : ''}" data-mv="1">›</a></div>`;
+  p.innerHTML = `<div class="fch">直接改数字，回车或点确定</div><div class="dedit">${grp('a', f)}<b>至</b>${grp('b', e)}<button type="button" class="dok">确定</button></div><div class="derr" id="rDerr"></div>`;
+  const first = p.querySelector('.dn'); first.focus(); first.select();
+}
+function calClose() { const p = $('#rPop'); if (p) p.remove(); $('#rPer').classList.remove('open'); CAL = null; }
+// 读一组年月日：对就返回 'YYYY-MM-DD'，不对返回 {err: 哪一格怎么不对}（2026-11-14 用户：只说「日期不对」看不出是哪里）
+function calRead(k) {
+  const box = [...$('#rPop').querySelectorAll(`.dgrp[data-k="${k}"] .dn`)], nm = k === 'a' ? '开始' : '结束';
+  let [y, m, d] = box.map(x => parseInt(x.value, 10));
+  if (!(y >= 2000 && y <= 2100)) return { err: `${nm}日期的年份要填 4 位，比如 ${new Date().getFullYear()}`, el: box[0] };
+  if (!(m >= 1 && m <= 12)) return { err: `${nm}日期的月份要在 1 到 12 之间`, el: box[1] };
+  if (!(d >= 1 && d <= 31)) return { err: `${nm}日期的日子要在 1 到 31 之间`, el: box[2] };
+  // 这个月没有这一天（11 月 31 号、2 月 30 号）就用这个月最后一天，框里的数字也改过来（2026-11-14 用户）
+  const last = new Date(y, m, 0).getDate();
+  if (d > last) { d = last; box[2].value = d; }
+  return iso(new Date(y, m - 1, d));
+}
+function calApply() {
+  let a = calRead('a'), b = calRead('b'); const t = iso(new Date()), bad = typeof a === 'object' ? a : typeof b === 'object' ? b : null;
+  if (bad) { $('#rDerr').textContent = bad.err; bad.el.focus(); bad.el.select(); return; }
+  // 结束早于开始要提示，不偷偷对调（2026-11-14 用户）
+  if (a > b) { $('#rDerr').textContent = `结束日期（${+b.slice(5, 7)}/${+b.slice(8, 10)}）比开始日期（${+a.slice(5, 7)}/${+a.slice(8, 10)}）早，改一下`; const e = $('#rPop').querySelector('.dgrp[data-k="b"] .dn'); e.focus(); e.select(); return; }
+  if (a > t) { $('#rDerr').textContent = `开始那天（${+a.slice(5, 7)}/${+a.slice(8, 10)}）还没到`; return; }
+  if (b > t) b = t;
+  RP.p = 'custom'; RP.from = a; RP.to = b; calClose(); rRender();
 }
 $('#rPer').addEventListener('click', e => {
   const a = e.target.closest('#rPer > a[data-p]');
@@ -1035,20 +1064,18 @@ $('#rPer').addEventListener('click', e => {
   }
   if (!CAL || !e.target.closest('#rPop')) return;
   e.stopPropagation();
-  const mv = e.target.closest('[data-mv]');
-  if (mv && !mv.classList.contains('off')) { CAL.m = ymAdd(CAL.m, Number(mv.dataset.mv)); calDraw(); return; }
-  const dc = e.target.closest('[data-d]');
-  if (dc && !dc.classList.contains('off')) {
-    const d = dc.dataset.d;
-    if (!CAL.a || CAL.b) { CAL.a = d; CAL.b = ''; CAL.h = d; calDraw(); return; }
-    if (d < CAL.a) { CAL.b = CAL.a; CAL.a = d; } else CAL.b = d;
-    RP.p = 'custom'; RP.from = CAL.a; RP.to = CAL.b; calClose(); rRender();
-  }
+  if (e.target.closest('.dok')) calApply();
 });
-$('#rPer').addEventListener('mouseover', e => {
-  if (!CAL || !CAL.a || CAL.b) return;
-  const dc = e.target.closest('#rPop [data-d]'); if (!dc || dc.classList.contains('off') || CAL.h === dc.dataset.d) return;
-  CAL.h = dc.dataset.d; calDraw();
+$('#rPer').addEventListener('focusin', e => { if (e.target.classList.contains('dn')) setTimeout(() => e.target.select(), 0); });
+$('#rPer').addEventListener('input', e => {
+  const x = e.target; if (!x.classList.contains('dn')) return;
+  x.value = x.value.replace(/\D/g, ''); $('#rDerr').textContent = '';
+  if (x.value.length >= x.maxLength) { const all = [...$('#rPop').querySelectorAll('.dn')], n = all[all.indexOf(x) + 1]; if (n) { n.focus(); n.select(); } }
+});
+$('#rPer').addEventListener('keydown', e => {
+  const x = e.target; if (!x.classList || !x.classList.contains('dn')) return;
+  if (e.key === 'Enter') { e.preventDefault(); calApply(); return; }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); x.value = Math.max(0, (parseInt(x.value, 10) || 0) + (e.key === 'ArrowUp' ? 1 : -1)); x.select(); }
 });
 document.addEventListener('click', e => { if (CAL && !e.target.closest('#rPer')) calClose(); });
 document.addEventListener('keydown', e => { if (CAL && e.key === 'Escape') calClose(); });
@@ -1151,6 +1178,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.14 12:18</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.16 17:21</span>
 </body>
 </html>
