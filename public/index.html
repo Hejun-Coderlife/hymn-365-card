@@ -428,14 +428,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611161758"></script>
-<script src="report.js?v=202611161758"></script>
-<script src="xsel.js?v=202611161758"></script>
-<script src="datepick.js?v=202611161758"></script>
-<script src="api.js?v=202611161758"></script>
-<script src="vendor/xlsx.full.min.js?v=202611161758"></script>
-<script src="xls.js?v=202611161758"></script>
-<script src="gen.js?v=202611161758"></script>
+<script src="stores.js?v=202611161803"></script>
+<script src="report.js?v=202611161803"></script>
+<script src="xsel.js?v=202611161803"></script>
+<script src="datepick.js?v=202611161803"></script>
+<script src="api.js?v=202611161803"></script>
+<script src="vendor/xlsx.full.min.js?v=202611161803"></script>
+<script src="xls.js?v=202611161803"></script>
+<script src="gen.js?v=202611161803"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -1167,23 +1167,8 @@ update();
 // 线上（card.hemei.asia）要登录；本机双击打开（file://）还能当离线工具用，只是没有店员提交
 if (location.protocol !== 'file:') {
   api('/me').then(r => {
-    // 区域经理（2026-11-16 用户：不用另开账号）：从会员助手点「套餐战报」进来的，只看自己那组店的战报。
-    // 导航只留战报；区域经理固定成自己、门店只列他那组；下载 Excel（汇总表，有顾客手机号）不给，复制 / 下载图片留着
-    if (r.role === 'mgr') {
-      document.querySelectorAll('.nav a[data-panel]').forEach(a => { a.hidden = a.dataset.panel !== 'report'; });
-      const grpMgr = document.querySelector('.nav .grp[data-op]'); if (grpMgr) grpMgr.hidden = true;   // 「管理」那一组
-      $('.foot.me').hidden = false;
-      $('#meName').textContent = r.name + '（区域经理）';
-      $('#storeLink').hidden = true; $('#myPw').hidden = true;
-      $('#rMgr').innerHTML = `<option>${esc(r.name)}</option>`;   // 下拉里只有他自己（别的经理不列）
-      $('#rMgr').value = r.name; $('#rMgr').disabled = true;   // 固定成自己
-      const mb = $('#rMgr').nextElementSibling;   // 自画下拉的按钮跟着锁住（XSel 不看 disabled）
-      if (mb && mb.classList.contains('xs-btn')) { mb.setAttribute('disabled', ''); mb.style.opacity = '.6'; mb.style.cursor = 'default'; mb.onclick = null; }
-      rFillStores(); $('#rStore').value = '';   // 只列他那组店
-      $('#rXls').hidden = true;
-      showPanel('report');
-      return;
-    }
+    // 区域经理（2026-11-16 用户）：不留在这个操作台里，直接去只有战报的 report.html（手机上也能看）
+    if (r.role === 'mgr') { location.replace('/report.html'); return; }
     if (r.role !== 'op') { location.href = '/store.html'; return; }
     document.querySelectorAll('[data-op]').forEach(x => x.hidden = false); $('#subSec').hidden = false; loadSubs();
     if (r.name) $('#meName').textContent = r.name;
@@ -1195,6 +1180,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.16 17:58</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.16 18:03</span>
 </body>
 </html>

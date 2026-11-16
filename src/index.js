@@ -114,6 +114,12 @@ const subDesc = (s) => s.kind === 'refund' ? '退货 ' + (s.pkg || '') + (s.qty 
 
 /* ---- 会话 / 设备 ---- */
 const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
+// 只看区域经理通行证（不看 c365_s）：手机上可能同时登着店员版，两个身份并存（2026-11-16 用户踩到：
+// 点「套餐战报」却进了店员登记页，因为 /api/me 先认了店员会话）
+async function mgrOfReq(req, env) {
+  const p = await verifyPass(cookie(req, 'c365_m'), env && env.VIP_SSO_KEY);
+  return p && MGR_STORES[p.mgr] ? p.mgr : '';
+}
 async function currentUser(req, db, env) {
   const t = cookie(req, 'c365_s');
   if (t) {
@@ -241,7 +247,8 @@ async function handle(req, env) {
     return json({ ok: true }, 200, { 'Set-Cookie': [sessionCookie('', 0), mgrCookie('', 0)] });
   }
   /* 区域经理从会员助手点「套餐战报」进来（2026-11-16）：验会员助手签的 5 分钟通行证，
-     通过就换一张 12 小时的 cookie（c365_m），跳到战报。失败给一句中文，不跳登录页 */
+     通过就换一张 12 小时的 cookie（c365_m），直接跳到只有战报的 report.html。
+     手机上也登着店员版时，两个身份并存：店员页照旧走 c365_s，战报页只认 c365_m。失败给一句中文，不跳登录页 */
   if (p === '/sso' && req.method === 'GET') {
     const fail = (msg, code) => new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<div style="font:15px/1.8 -apple-system,\'PingFang SC\',sans-serif;color:#16140F;padding:48px 24px;text-align:center">' + msg +
@@ -254,16 +261,27 @@ async function handle(req, env) {
     const payload = d.mgr + '|' + (Date.now() + 12 * 3600000);
     const token = b64u(payload) + '.' + await hmacHex(env.VIP_SSO_KEY, payload);
     await audit(req, db, 'mgr:' + d.mgr, 'mgr_sso', d.mgr);
-    return new Response(null, { status: 302, headers: { Location: '/#view=report', 'Set-Cookie': mgrCookie(token, 43200), 'Cache-Control': 'no-store' } });
+    return new Response(null, { status: 302, headers: { Location: '/report.html', 'Set-Cookie': mgrCookie(token, 43200), 'Cache-Control': 'no-store' } });
+  }
+  // 战报页问「我是哪位经理」：只认 c365_m，没有就让他回会员助手再点一次
+  if (p === '/mgrme' && req.method === 'GET') {
+    const m = await mgrOfReq(req, env);
+    if (!m) throw new HttpError(401, '通行证已过期，请回会员助手重新点「套餐战报」');
+    return json({ role: 'mgr', name: m });
+  }
+  // 战报页「退出」：只清经理通行证，不动店里的登录
+  if (p === '/mgrout' && req.method === 'POST') {
+    return json({ ok: true }, 200, { 'Set-Cookie': mgrCookie('', 0) });
   }
 
   const u = await currentUser(req, db, env);
   if (!u) throw new HttpError(401, '请先登录');
   const isOp = u.role === 'op';
   const needOp = () => { if (!isOp) throw new HttpError(403, '没有权限'); };
+  const mgrName = await mgrOfReq(req, env);   // 跟店员会话并存的经理身份（战报页用）
 
   // 区域经理（2026-11-16，从会员助手「套餐战报」进来）只放这几个：/me、战报数据、战报的店员下拉。
-  // 汇总表里有顾客手机号，经理不能拿（/summary 也不给），其他接口一律 403
+  // 战报本身给全部门店（2026-11-16 用户：允许他们看到所有的排名）；汇总表里有顾客手机号，经理不能拿（/summary 也不给），其他接口一律 403
   if (u.role === 'mgr') {
     const G = req.method === 'GET';
     if (!(G && (p === '/me' || p === '/report' || (p === '/staff' && url.searchParams.has('all'))))) throw new HttpError(403, '区域经理只能看战报');
@@ -292,7 +310,7 @@ async function handle(req, env) {
     if (url.searchParams.get('all')) {
       const all = await allStaff(db);
       // 区域经理跟后台一样拿全部（2026-11-16 用户：允许他们看到所有的排名，店员下拉也要能切别人的店员）
-      return json({ staff: isOp || u.role === 'mgr' ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
+      return json({ staff: isOp || u.role === 'mgr' || mgrName ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
     }
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
     if (!st) return json({ staff: [] });
@@ -428,7 +446,7 @@ async function handle(req, env) {
   }
   // 战报数据：时间段内提交的（不含删掉的），按提交时间算。只给统计要用的字段，不给姓名手机号
   if (p === '/report' && req.method === 'GET') {
-    if (!(isOp || u.role === 'mgr')) throw new HttpError(403, '没有权限');
+    if (!(isOp || u.role === 'mgr' || mgrName)) throw new HttpError(403, '没有权限');
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
     const r = await db.prepare("SELECT s.store, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name, s.kind, s.pkg, s.qty, s.created FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
     // 有数据的第一天（2026-11-14 用户：选了很大的区间，默认从产生数据那天开始算）：同一个口径（不含删掉的、退货）
