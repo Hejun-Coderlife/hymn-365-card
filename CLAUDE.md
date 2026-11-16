@@ -70,3 +70,11 @@ GitHub Pages 老地址 hejun-coderlife.github.io/hymn-365-card 只剩根目录 i
 - 结束早于开始要提示「结束日期（x）比开始日期（y）早，改一下」，不再偷偷对调；年月日哪格不对就具体说哪格（2026-11-14 用户）
 - 战报图按门店排时店名后面不写区域经理名字（2026-11-15 用户）；按店员排时后面的门店照留
 - 「3次护理导入」页 H 列加「顾客姓名」（2026-11-16 用户）：名单里的姓名，没有就空着
+
+## 2026-11-16 区域经理通行证（SSO）：会员助手点「套餐战报」直接进来（已部署）
+- 用户要：3 位区域经理（官卜妮 / 杜海霞 / 张维）不用另开账号，从会员助手 hymn-vip 点「套餐战报」打开 card.hemei.asia，**只看自己那组门店的战报**。
+- `GET /api/sso?t=`（handle 里 p === '/sso'，挂在 /login、/logout 旁边、登录检查之前）：验会员助手签的 5 分钟通行证（payload `经理名|过期毫秒`，base64url(payload) + '.' + hex(HMAC-SHA256(密钥, payload))），签名用 `sameStr` 常量时间比较。签名不对 / 过期 / 名字不在 `MGR_STORES` / 没配密钥都返回一句中文错误页，**不发 cookie**。通过后用同一个密钥另签一张 12 小时，写 `c365_m`（HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=43200），audit 记 `mgr_sso`，302 到 `/#view=report`。密钥是 Worker secret `VIP_SSO_KEY`（= 会员助手的 `CARD_SSO_KEY`），不进仓库。
+- `currentUser(req, db, env)`：没有 c365_s 会话时看 c365_m，有效就返回 `{ id: 0, role: 'mgr', name: 经理名 }`，**不写 devices 表**；`/logout` 同时清 c365_m。`who()` 对 mgr 写 `mgr:姓名`。
+- `role === 'mgr'` 只放 `GET /me`、`GET /report`（rows 只留 `MGR_STORES[名字]` 里的店，`first` 照旧；原来是 needOp()，改成 op 或 mgr）、`GET /staff?all=1`（只给那组店的人、带 store，给战报店员下拉），其他一律 403「区域经理只能看战报」。**`/summary` 汇总表不给经理**（里面有顾客手机号）。
+- 前端 index.html：role=mgr 时只留战报面板，导入表和「管理」组隐藏；`#rMgr` 只剩他自己的名字并 disabled（自画下拉 XSel 不看 disabled，要把它的按钮一起锁）；`#rStore` 只列他那组；隐藏 `#rXls`（下载 Excel = 汇总表）；复制图片 / 下载图片保留；左下写「名字（区域经理）」，隐藏「打开店员版」「修改密码」。
+- 规则：**经理只看自己那组、不能下载汇总表、通行证 5 分钟 / cookie 12 小时**。本地测过：张维 12 份只含自己 14 店、官卜妮 20 店、杜海霞 8 店、篡改与过期进不去、/api/subs 等 403、操作员登录与店员手机提交回归正常。部署版本 `0c37a4aa-e4bc-451d-b2a6-55a5f5ce16d3`。

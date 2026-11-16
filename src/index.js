@@ -257,10 +257,17 @@ async function handle(req, env) {
     return new Response(null, { status: 302, headers: { Location: '/#view=report', 'Set-Cookie': mgrCookie(token, 43200), 'Cache-Control': 'no-store' } });
   }
 
-  const u = await currentUser(req, db);
+  const u = await currentUser(req, db, env);
   if (!u) throw new HttpError(401, '请先登录');
   const isOp = u.role === 'op';
   const needOp = () => { if (!isOp) throw new HttpError(403, '没有权限'); };
+
+  // 区域经理（2026-11-16，从会员助手「套餐战报」进来）只放这几个：/me、战报数据、战报的店员下拉。
+  // 汇总表里有顾客手机号，经理不能拿（/summary 也不给），其他接口一律 403
+  if (u.role === 'mgr') {
+    const G = req.method === 'GET';
+    if (!(G && (p === '/me' || p === '/report' || (p === '/staff' && url.searchParams.has('all'))))) throw new HttpError(403, '区域经理只能看战报');
+  }
 
   if (p === '/me') return json({ role: u.role, store: u.store || null, name: u.name || null });
   // 自己改自己的密码（2026-11-12 用户：支持自己修改）：要输旧密码；改完自己这台不掉线，别的设备要重登
@@ -284,7 +291,8 @@ async function handle(req, env) {
     // 店员拿到的不带门店（2026-11-14 用户：别让所有人看到谁是哪家店的），按工号排；后台照旧带门店（战报店员下拉、修改弹窗要分组）
     if (url.searchParams.get('all')) {
       const all = await allStaff(db);
-      return json({ staff: isOp ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
+      // 区域经理跟后台一样拿全部（2026-11-16 用户：允许他们看到所有的排名，店员下拉也要能切别人的店员）
+      return json({ staff: isOp || u.role === 'mgr' ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
     }
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
     if (!st) return json({ staff: [] });
@@ -420,11 +428,12 @@ async function handle(req, env) {
   }
   // 战报数据：时间段内提交的（不含删掉的），按提交时间算。只给统计要用的字段，不给姓名手机号
   if (p === '/report' && req.method === 'GET') {
-    needOp();
+    if (!(isOp || u.role === 'mgr')) throw new HttpError(403, '没有权限');
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
     const r = await db.prepare("SELECT s.store, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name, s.kind, s.pkg, s.qty, s.created FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
     // 有数据的第一天（2026-11-14 用户：选了很大的区间，默认从产生数据那天开始算）：同一个口径（不含删掉的、退货）
     const f = await db.prepare("SELECT MIN(created) t FROM subs WHERE status <> 'del' AND kind <> 'refund'").first();
+    // 区域经理也拿全部（2026-11-16 用户：允许他们看到所有的排名），只给统计字段，不含姓名 / 手机号
     return json({ rows: r.results, first: (f && f.t) || null });
   }
   // 汇总表（2026-11-13 用户：照他手工那张登记表——区域/日期/门店/单号/会员/手机/续卡日期/开卡续卡/备注/营业员/数量/套餐/奖励，能选日期）
