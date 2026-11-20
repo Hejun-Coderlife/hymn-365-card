@@ -428,14 +428,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611201422"></script>
-<script src="report.js?v=202611201422"></script>
-<script src="xsel.js?v=202611201422"></script>
-<script src="datepick.js?v=202611201422"></script>
-<script src="api.js?v=202611201422"></script>
-<script src="vendor/xlsx.full.min.js?v=202611201422"></script>
-<script src="xls.js?v=202611201422"></script>
-<script src="gen.js?v=202611201422"></script>
+<script src="stores.js?v=202611201450"></script>
+<script src="report.js?v=202611201450"></script>
+<script src="xsel.js?v=202611201450"></script>
+<script src="datepick.js?v=202611201450"></script>
+<script src="api.js?v=202611201450"></script>
+<script src="vendor/xlsx.full.min.js?v=202611201450"></script>
+<script src="xls.js?v=202611201450"></script>
+<script src="gen.js?v=202611201450"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -619,41 +619,85 @@ const dirGet = async () => { try { const db = await dirDB(); return await new Pr
 const dirSet = async h => { const db = await dirDB(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); h ? t.objectStore('kv').put(h, 'dir') : t.objectStore('kv').delete('dir'); t.oncomplete = ok; t.onerror = ok; }); };
 let saveDir = null;
 function paintSaveDir() { $('#saveDir').textContent = saveDir ? saveDir.name : '下载'; $('#saveDef').hidden = !saveDir; }
-dirGet().then(h => { saveDir = h; paintSaveDir(); });
+dirGet().then(h => { saveDir = h; paintSaveDir(); permCheck(); });
 $('#saveChg').onclick = async () => {
   if (!DIR_OK) return toast('这个浏览器不能在网页里选位置：请用 Chrome，或去浏览器设置里改下载位置');
-  try { const h = await window.showDirectoryPicker({ id: 'c365-xls', mode: 'readwrite', startIn: saveDir || 'downloads' }); saveDir = h; await dirSet(h); paintSaveDir(); toast('以后导出存到「' + h.name + '」'); }
+  try { const h = await window.showDirectoryPicker({ id: 'c365-xls', mode: 'readwrite', startIn: saveDir || 'downloads' }); saveDir = h; permStuck = false; await dirSet(h); paintSaveDir(); toast('以后导出存到「' + h.name + '」'); }
   catch (e) { if (e.name !== 'AbortError') toast('没选成：' + e.message); }
 };
 $('#saveDef').onclick = async () => { saveDir = null; await dirSet(null); paintSaveDir(); toast('改回「下载」文件夹'); };
-// 等浏览器给文件夹权限最多等几秒（2026-11-20 叶金虎：赫眉助手后台版是没有地址栏的应用窗口，Edge 的「允许」提示看不到，
-// requestPermission 一直不回，导出按钮一直灰着、没导出）。超时就这次先存「下载」，之后他再点允许也不会再写一份
-const PERM_WAIT = 5000;
-function permTimeout() { return new Promise(ok => setTimeout(() => ok('timeout'), PERM_WAIT)); }
+// 文件夹权限（2026-11-20 叶金虎导出卡死，本机 Edge 应用窗口实测）：Edge 重开后第一次写选好的文件夹，窗口左上角弹一个小框
+// 「查看和编辑文件」；**点了框外面框就消失，requestPermission 永远不回，刷新也不再弹，要整个关掉 Edge 重开**。
+// 框有两种：重开后第一次多半是三个按钮，选「每次访问时都允许」后 Edge 记住、重开也不再问；被关掉过之后可能只有「编辑文件 / 取消」（只管这次）。所以：① 页面一打开就检查，要允许就在顶上出提示条，导出前先处理；
+// ② 导出时最多等 PERM_WAIT，超时这次先存「下载」并说清楚怎么恢复；③ 这一页里卡过一次（permStuck），之后不再等，直接存「下载」
+const PERM_WAIT = 15000;
+let permStuck = false;
+const permTimeout = ms => new Promise(ok => setTimeout(() => ok('timeout'), ms));
+// 小框晚点才点「允许」（已经超时、这次存了「下载」）：一点就恢复，提示条收起，下次导出直接存进去
+function permLate(req) {
+  req.then(p => {
+    if (p !== 'granted') return;
+    permStuck = false;
+    ['permAsk', 'saveNote'].forEach(id => { const x = $('#' + id); if (x) x.remove(); });
+    toast('好了，以后导出直接存到「' + saveDir.name + '」');
+  });
+}
+const ASK_TIP = '窗口左上角会弹出一个小框：有「<b>每次访问时都允许</b>」（英文 Allow on every visit）就点它，以后不用再点；只有「编辑文件 / 取消」两个按钮的，点「<b>编辑文件</b>」。<b>别点小框外面</b>，点了外面它会消失，要关掉 Edge 重开才会再出来';
+const STUCK_TIP = '把 Edge 整个关掉（或者重启电脑），再从赫眉助手打开这里，出现小框时点「<b>每次访问时都允许</b>」（没有这个就点「编辑文件」）';
+function noteBox(id, color, html, btns) {
+  const old = $('#' + id); if (old) old.remove();
+  const d = document.createElement('div');
+  d.id = id;
+  // 靠右放：Edge 的权限小框弹在窗口左上角，别挡住它
+  d.style.cssText = 'position:fixed;right:24px;top:24px;z-index:9999;max-width:560px;width:calc(100% - 32px);box-sizing:border-box;background:#fff;border:1px solid var(--ink,#222);border-left:4px solid ' + color + ';padding:16px 18px;box-shadow:0 6px 24px rgba(0,0,0,.15);font-size:14px;line-height:1.7;color:var(--t1,#222)';
+  d.innerHTML = html + '<div style="text-align:right;margin-top:10px">' + btns.map((b, i) => `<button class="btn sm${b.pri ? ' go1' : ''}" type="button" data-i="${i}" style="margin-left:8px">${b.t}</button>`).join('') + '</div>';
+  d.querySelectorAll('button').forEach(x => { x.onclick = () => btns[+x.dataset.i].f(d); });
+  document.body.appendChild(d);
+  return d;
+}
 // 改存「下载」的提示：要点「知道了」才关，不像 toast 两秒就没了
 function saveNotice(name, dir) {
-  const old = $('#saveNote'); if (old) old.remove();
-  const d = document.createElement('div');
-  d.id = 'saveNote';
-  d.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:9999;max-width:560px;width:calc(100% - 32px);box-sizing:border-box;background:#fff;border:1px solid var(--ink,#222);border-left:4px solid #D2642A;padding:16px 18px;box-shadow:0 6px 24px rgba(0,0,0,.15);font-size:14px;line-height:1.7;color:var(--t1,#222)';
-  d.innerHTML = `<b>已导出 ${esc(name)}，存在电脑的「下载」文件夹。</b><br>没能存进你选的「${esc(dir)}」文件夹：浏览器在等你点「允许」，这个窗口看不到那个提示。<br>想继续存到「${esc(dir)}」：点「下载位置」旁边的「更改」，重新选一次这个文件夹。` +
-    '<div style="text-align:right;margin-top:10px"><button class="btn sm" type="button">知道了</button></div>';
-  d.querySelector('button').onclick = () => d.remove();
-  document.body.appendChild(d);
+  const ss = $('#permAsk'); if (ss) ss.remove();
+  noteBox('saveNote', '#D2642A', `<b>已导出 ${esc(name)}，这次存在电脑的「下载」文件夹。</b><br>没能存进「${esc(dir)}」文件夹：Edge 在等你允许，但那个小框已经关掉了。<br>想恢复直接存到「${esc(dir)}」：${STUCK_TIP}。`,
+    [{ t: '知道了', f: d => d.remove() }]);
+}
+// 页面打开时：选过的文件夹要重新允许，就在顶上提示，点「现在允许」弹 Edge 的小框
+async function permCheck() {
+  if (!saveDir || !saveDir.queryPermission) return;
+  let p; try { p = await saveDir.queryPermission({ mode: 'readwrite' }); } catch (e) { return; }
+  if (p !== 'prompt') return;
+  noteBox('permAsk', '#C9A15A', `<b>导出的表格存到「${esc(saveDir.name)}」文件夹，Edge 要你允许一次。</b><br>点下面「现在允许」：${ASK_TIP}。`, [
+    { t: '先不用（这次存「下载」）', f: d => d.remove() },
+    { t: '现在允许', pri: 1, f: async d => {
+      d.querySelector('[data-i="1"]').textContent = '等你在左上角小框里点…';
+      const req = saveDir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
+      permLate(req);
+      const r = await Promise.race([req, permTimeout(60000)]);   // 人要看完提示再点，多等一会儿
+      if (r === 'granted') return;   // permLate 收尾
+      if (r === 'timeout') permStuck = true;
+      noteBox('permAsk', '#D2642A', r === 'timeout' ? `<b>Edge 没有弹出小框，或者小框被关掉了。</b><br>这次导出会先存到「下载」文件夹。想直接存到「${esc(saveDir.name)}」：${STUCK_TIP}。`
+        : `<b>点了「不允许」。</b>这次导出会存到「下载」文件夹。想存到「${esc(saveDir.name)}」：点「保存到」旁边的「更改」重新选一次这个文件夹。`, [{ t: '知道了', f: x => x.remove() }]);
+    } }]);
 }
 // 存文件：有选好的文件夹就写进去（同名自动加 (2)），没有 / 没给权限就照旧下载。返回存到了哪
-// btn：等权限时按钮上写「等待允许…」
+// btn：等权限时按钮上写提示
 async function download(blob, name, btn) {
   if (saveDir) try {
-    const wait = btn ? setTimeout(() => { btn.textContent = '等待允许…'; }, 1000) : 0;
-    let perm = await Promise.race([(async () => {
-      let p = await saveDir.queryPermission({ mode: 'readwrite' });
-      if (p !== 'granted') p = await saveDir.requestPermission({ mode: 'readwrite' });   // 浏览器重开后要再点一次「允许」
-      return p;
-    })(), permTimeout()]);
+    const ask = $('#permAsk'); if (ask) ask.remove();
+    const wait = btn ? setTimeout(() => { btn.textContent = '请点左上角小框里的允许'; }, 800) : 0;
+    let perm = 'timeout';
+    if (!permStuck) {
+      const req = (async () => {
+        let p = await saveDir.queryPermission({ mode: 'readwrite' });
+        if (p !== 'granted') { p = await saveDir.requestPermission({ mode: 'readwrite' }); permLate(Promise.resolve(p)); }   // 浏览器重开后要再点一次「允许」
+        return p;
+      })();
+      perm = await Promise.race([req, permTimeout(PERM_WAIT)]);
+    }
     clearTimeout(wait);
     if (perm === 'timeout') {
-      logAct('export', `等「${saveDir.name}」文件夹权限超过 ${PERM_WAIT / 1000} 秒没回应，${name} 改存「下载」`);
+      if (!permStuck) logAct('export', `等「${saveDir.name}」文件夹权限超过 ${PERM_WAIT / 1000} 秒没回应，${name} 改存「下载」`);
+      permStuck = true;
       saveNotice(name, saveDir.name);
     }
     if (perm === 'granted') {
@@ -1205,6 +1249,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.20 14:22</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.20 14:50</span>
 </body>
 </html>

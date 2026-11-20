@@ -66,5 +66,6 @@ GitHub Pages 老地址 hejun-coderlife.github.io/hymn-365-card 只剩根目录 i
 
 ## 2026-11-20 导出卡住（叶金虎）
 - 赫眉助手后台版用 Edge `--app` 窗口打开，没有地址栏；选过下载位置的，Edge 重开后要再点一次「允许」，提示看不到，requestPermission 一直不回 → 导出按钮一直灰、没导出
-- download() 等权限最多 5 秒（PERM_WAIT），超时这次存「下载」、弹要点「知道了」的提示（saveNotice），操作记录写一条；导出按钮等的时候写「等待允许…」
+- 本机 Edge 应用窗口实测（临时配置）：小框其实看得见（窗口左上角），但**点了框外面就消失、requestPermission 永远不回，刷新也不再弹，要整个关掉 Edge 重开**。框有两种：三个按钮（选「每次访问时都允许」后 Edge 记住，重开不再问，对整个网站有效）/ 两个按钮「编辑文件 / 取消」（只管这次）
+- 改法：页面打开时 permCheck() 发现要允许就在右上出提示条（靠右，别挡左上角的小框），点「现在允许」弹小框，最多等 60 秒；导出时 download() 最多等 15 秒（PERM_WAIT），超时这次存「下载」+ 要点「知道了」的提示（saveNotice），这页记 permStuck 之后不再等；晚点才点了允许 permLate() 自动恢复
 - 11-14～11-16 Mac 部署过、没推 GitHub 的改动（report.html、/sso 等）这天从线上取回提交了（后端取自部署包 source map）。**部署前先 git pull，确认线上跟 GitHub 一致**
