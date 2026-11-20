@@ -428,14 +428,14 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611162006"></script>
-<script src="report.js?v=202611162006"></script>
-<script src="xsel.js?v=202611162006"></script>
-<script src="datepick.js?v=202611162006"></script>
-<script src="api.js?v=202611162006"></script>
-<script src="vendor/xlsx.full.min.js?v=202611162006"></script>
-<script src="xls.js?v=202611162006"></script>
-<script src="gen.js?v=202611162006"></script>
+<script src="stores.js?v=202611201422"></script>
+<script src="report.js?v=202611201422"></script>
+<script src="xsel.js?v=202611201422"></script>
+<script src="datepick.js?v=202611201422"></script>
+<script src="api.js?v=202611201422"></script>
+<script src="vendor/xlsx.full.min.js?v=202611201422"></script>
+<script src="xls.js?v=202611201422"></script>
+<script src="gen.js?v=202611201422"></script>
 <script>
 const $ = s => document.querySelector(s);
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
@@ -626,11 +626,36 @@ $('#saveChg').onclick = async () => {
   catch (e) { if (e.name !== 'AbortError') toast('没选成：' + e.message); }
 };
 $('#saveDef').onclick = async () => { saveDir = null; await dirSet(null); paintSaveDir(); toast('改回「下载」文件夹'); };
+// 等浏览器给文件夹权限最多等几秒（2026-11-20 叶金虎：赫眉助手后台版是没有地址栏的应用窗口，Edge 的「允许」提示看不到，
+// requestPermission 一直不回，导出按钮一直灰着、没导出）。超时就这次先存「下载」，之后他再点允许也不会再写一份
+const PERM_WAIT = 5000;
+function permTimeout() { return new Promise(ok => setTimeout(() => ok('timeout'), PERM_WAIT)); }
+// 改存「下载」的提示：要点「知道了」才关，不像 toast 两秒就没了
+function saveNotice(name, dir) {
+  const old = $('#saveNote'); if (old) old.remove();
+  const d = document.createElement('div');
+  d.id = 'saveNote';
+  d.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:9999;max-width:560px;width:calc(100% - 32px);box-sizing:border-box;background:#fff;border:1px solid var(--ink,#222);border-left:4px solid #D2642A;padding:16px 18px;box-shadow:0 6px 24px rgba(0,0,0,.15);font-size:14px;line-height:1.7;color:var(--t1,#222)';
+  d.innerHTML = `<b>已导出 ${esc(name)}，存在电脑的「下载」文件夹。</b><br>没能存进你选的「${esc(dir)}」文件夹：浏览器在等你点「允许」，这个窗口看不到那个提示。<br>想继续存到「${esc(dir)}」：点「下载位置」旁边的「更改」，重新选一次这个文件夹。` +
+    '<div style="text-align:right;margin-top:10px"><button class="btn sm" type="button">知道了</button></div>';
+  d.querySelector('button').onclick = () => d.remove();
+  document.body.appendChild(d);
+}
 // 存文件：有选好的文件夹就写进去（同名自动加 (2)），没有 / 没给权限就照旧下载。返回存到了哪
-async function download(blob, name) {
+// btn：等权限时按钮上写「等待允许…」
+async function download(blob, name, btn) {
   if (saveDir) try {
-    let perm = await saveDir.queryPermission({ mode: 'readwrite' });
-    if (perm !== 'granted') perm = await saveDir.requestPermission({ mode: 'readwrite' });   // 浏览器重开后要再点一次「允许」
+    const wait = btn ? setTimeout(() => { btn.textContent = '等待允许…'; }, 1000) : 0;
+    let perm = await Promise.race([(async () => {
+      let p = await saveDir.queryPermission({ mode: 'readwrite' });
+      if (p !== 'granted') p = await saveDir.requestPermission({ mode: 'readwrite' });   // 浏览器重开后要再点一次「允许」
+      return p;
+    })(), permTimeout()]);
+    clearTimeout(wait);
+    if (perm === 'timeout') {
+      logAct('export', `等「${saveDir.name}」文件夹权限超过 ${PERM_WAIT / 1000} 秒没回应，${name} 改存「下载」`);
+      saveNotice(name, saveDir.name);
+    }
     if (perm === 'granted') {
       const dot = name.lastIndexOf('.'), base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
       let fn = name;
@@ -660,7 +685,7 @@ $('#go').onclick = async () => {
   // 店员提交载入的人带上门店（3次护理导入 F 列）
   people.forEach(p => { const x = loaded[p.phone] && subs.pending.find(y => y.id === loaded[p.phone]); p.store = x ? x.store : ''; });
   try {
-    const where = await download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date));
+    const where = await download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date), btn);
     toast(`已导出 ${Gen.allName(people, opt.date)}，在${where}；名单已清空`);
     await markExported();
     // 2026-11-13 用户：导出过以后名单自动清空，免得下一批跟这批混在一起（导错了到「看已处理」里撤回再载入）
@@ -1180,6 +1205,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.16 20:06</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.20 14:22</span>
 </body>
 </html>
