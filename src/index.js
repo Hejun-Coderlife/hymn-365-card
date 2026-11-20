@@ -29,6 +29,39 @@ async function pbkdf2(pass, salt) {
 }
 function sameStr(a, b) { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; }
 function cookie(req, name) { const m = (req.headers.get('Cookie') || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)')); return m ? m[1] : ''; }
+/* ---- 区域经理通行证（2026-11-16 用户：3 位区域经理不用另开账号，从会员助手 hymn-vip 直接看自己那组的战报）----
+   会员助手用共享密钥签一张 5 分钟的：token = base64url(经理名|过期毫秒) + '.' + hex(HMAC-SHA256(密钥, payload))
+   GET /sso?t= 验过以后，这边用同一个密钥另签一张 12 小时的放进 cookie c365_m（HttpOnly; Secure; SameSite=Lax），
+   之后 currentUser 认这个 cookie，role = 'mgr'，只放 /me、/report、/staff?all=1。
+   密钥 VIP_SSO_KEY 只在 Worker secret，跟会员助手的 CARD_SSO_KEY 是同一个值，不进代码 */
+function b64u(s) {
+  const b = new TextEncoder().encode(s);
+  let x = ''; for (let i = 0; i < b.length; i++) x += String.fromCharCode(b[i]);
+  return btoa(x).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function ub64u(s) {
+  const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
+  const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(b);
+}
+async function hmacHex(key, msg) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg)));
+}
+const mgrCookie = (t, age) => 'c365_m=' + t + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=' + age;
+// 验一张通行证：签名对、没过期才返回 { mgr }，否则 null
+async function verifyPass(token, key) {
+  if (!key || !token) return null;
+  const i = String(token).indexOf('.');
+  if (i <= 0) return null;
+  let payload;
+  try { payload = ub64u(token.slice(0, i)); } catch (e) { return null; }
+  const m = payload.match(/^([^|]{1,40})\|(\d{10,16})$/);
+  if (!m) return null;
+  if (!sameStr(await hmacHex(key, payload), String(token).slice(i + 1))) return null;   // 常量时间比较
+  if (!(Number(m[2]) > Date.now())) return null;
+  return { mgr: m[1], exp: Number(m[2]) };
+}
 async function body(req) { try { return await req.json(); } catch (e) { throw bad('请求格式不对'); } }
 const str = (v, max) => String(v == null ? '' : v).trim().slice(0, max || 100);
 // 操作记录：只增不删（库里有触发器，DELETE / UPDATE 都会被拒，2026-11-11 用户要求「不可删除」）。
@@ -71,7 +104,7 @@ async function allStaff(db) {
 }
 // 2026-11-12 起每家店一个店员账号（users.store），各自最多 5 台设备。操作记录的 role 写成 staff:店名，看得出是哪家店
 // 后台也分人（2026-11-12 用户：何俊、金晓锋、叶金虎、毛毛各一个，users.name），操作记录写 op:姓名
-const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role === 'op' && u.name ? 'op:' + u.name : u.role;
+const who = (u) => u.role === 'staff' && u.store ? 'staff:' + u.store : u.role === 'op' && u.name ? 'op:' + u.name : u.role === 'mgr' ? 'mgr:' + (u.name || '') : u.role;
 const acctName = (u) => u.role === 'staff' ? (u.store || '店员') : u.name ? '后台 ' + u.name : ROLE_NAME[u.role] || u.role;
 // 套餐（2026-11-12 用户：新开卡 / 续卡后面必须 4 选 1）。名字只要海报上的头两行；存全名，跟 public/stores.js 的 PKGS 一致
 const PKGS = ['女神季度管理 1980套餐', '女神全套季度管理 3980套餐', '女神全套半年度管理 6980套餐', '女神全套年度管理 19800套餐'];
@@ -81,13 +114,30 @@ const subDesc = (s) => s.kind === 'refund' ? '退货 ' + (s.pkg || '') + (s.qty 
 
 /* ---- 会话 / 设备 ---- */
 const sessionCookie = (t, age) => 'c365_s=' + t + '; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=' + age;
-async function currentUser(req, db) {
+// 只看区域经理通行证（不看 c365_s）：手机上可能同时登着店员版，两个身份并存（2026-11-16 用户踩到：
+// 点「套餐战报」却进了店员登记页，因为 /api/me 先认了店员会话）
+async function mgrOfReq(req, env) {
+  // cookie 是直接在 card.hemei.asia 打开时用的；X-Mgr 是会员助手里 iframe 嵌进来时用的
+  // （跨站 iframe 里第三方的 cookie 会被浏览器拦掉，所以把通行证放在请求头，2026-11-16）
+  const t = req.headers.get('X-Mgr') || cookie(req, 'c365_m');
+  const p = await verifyPass(t, env && env.VIP_SSO_KEY);
+  return p && MGR_STORES[p.mgr] ? p.mgr : '';
+}
+async function currentUser(req, db, env) {
   const t = cookie(req, 'c365_s');
-  if (!t) return null;
-  const u = await db.prepare('SELECT u.id, u.role, u.store, u.name, s.did FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
-    .bind(await sha256(t), Date.now()).first();
-  if (u) await db.prepare('UPDATE devices SET last_at = ? WHERE id = ?').bind(Date.now(), u.did).run();
-  return u;
+  if (t) {
+    const u = await db.prepare('SELECT u.id, u.role, u.store, u.name, s.did FROM sessions s JOIN users u ON u.id = s.uid JOIN devices d ON d.id = s.did WHERE s.th = ? AND s.expires > ?')
+      .bind(await sha256(t), Date.now()).first();
+    if (u) {
+      await db.prepare('UPDATE devices SET last_at = ? WHERE id = ?').bind(Date.now(), u.did).run();
+      return u;
+    }
+  }
+  // 没有后台会话时看区域经理通行证（2026-11-16）：12 小时内从会员助手点「套餐战报」进来的。不写 devices 表。
+  // 会员助手 iframe 里的通行证放在 X-Mgr 请求头（跨站 iframe 里 cookie 会被浏览器拦掉）
+  const p = await verifyPass(req.headers.get('X-Mgr') || cookie(req, 'c365_m'), env && env.VIP_SSO_KEY);
+  if (p && MGR_STORES[p.mgr]) return { id: 0, role: 'mgr', store: null, name: p.mgr };
+  return null;
 }
 // 认设备：已登记的直接用；新设备登记上，超过 5 台就把最久没用的挤掉（连同它的会话）
 async function bindDevice(req, db, u, now) {
@@ -197,13 +247,58 @@ async function handle(req, env) {
       await db.prepare('DELETE FROM sessions WHERE th = ?').bind(await sha256(t)).run();
       if (w) await audit(req, db, who(w), 'logout', null);
     }
-    return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+    // 退出时把区域经理通行证也清掉（2026-11-16）
+    return json({ ok: true }, 200, { 'Set-Cookie': [sessionCookie('', 0), mgrCookie('', 0)] });
+  }
+  /* 区域经理从会员助手点「套餐战报」进来（2026-11-16）：验会员助手签的 5 分钟通行证，
+     通过就换一张 12 小时的 cookie（c365_m），直接跳到只有战报的 /report（report.html）。
+     手机上也登着店员版时，两个身份并存：店员页照旧走 c365_s，战报页只认 c365_m。失败给一句中文，不跳登录页 */
+  if (p === '/sso' && req.method === 'GET') {
+    const fail = (msg, code) => new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<div style="font:15px/1.8 -apple-system,\'PingFang SC\',sans-serif;color:#16140F;padding:48px 24px;text-align:center">' + msg +
+      '<div style="margin-top:20px"><a href="https://vip.hemei.asia/#view=follow" style="color:#B9808B">回会员助手再点一次</a></div></div>',
+      { status: code || 403, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+    if (!env.VIP_SSO_KEY) return fail('战报通行证还没配置，请联系后台');
+    const d = await verifyPass(str(url.searchParams.get('t'), 500), env.VIP_SSO_KEY);
+    if (!d) return fail('通行证无效或已过期，请回会员助手再点一次「套餐战报」');
+    if (!MGR_STORES[d.mgr]) return fail('「' + String(d.mgr).replace(/[&<>"]/g, '') + '」还没有负责的门店，请联系后台');
+    const payload = d.mgr + '|' + (Date.now() + 12 * 3600000);
+    const token = b64u(payload) + '.' + await hmacHex(env.VIP_SSO_KEY, payload);
+    await audit(req, db, 'mgr:' + d.mgr, 'mgr_sso', d.mgr);
+    return new Response(null, { status: 302, headers: { Location: '/report', 'Set-Cookie': mgrCookie(token, 43200), 'Cache-Control': 'no-store' } });
+  }
+  // 会员助手 iframe 用：拿 5 分钟的通行证换一张 12 小时的，返回 JSON（不靠 cookie，跨站 iframe 也能用）
+  if (p === '/mgrlogin' && req.method === 'GET') {
+    if (!env.VIP_SSO_KEY) throw new HttpError(503, '战报通行证还没配置，请联系后台');
+    const d = await verifyPass(str(url.searchParams.get('t'), 500), env.VIP_SSO_KEY);
+    if (!d) throw new HttpError(403, '通行证无效或已过期，请回会员助手再点一次「套餐战报」');
+    if (!MGR_STORES[d.mgr]) throw new HttpError(403, '「' + String(d.mgr).replace(/[&<>"]/g, '') + '」还没有负责的门店，请联系后台');
+    const payload = d.mgr + '|' + (Date.now() + 12 * 3600000);
+    return json({ token: b64u(payload) + '.' + await hmacHex(env.VIP_SSO_KEY, payload), name: d.mgr });
+  }
+  // 战报页问「我是哪位经理」：只认 c365_m，没有就让他回会员助手再点一次
+  if (p === '/mgrme' && req.method === 'GET') {
+    const m = await mgrOfReq(req, env);
+    if (!m) throw new HttpError(401, '通行证已过期，请回会员助手重新点「套餐战报」');
+    return json({ role: 'mgr', name: m });
+  }
+  // 战报页「退出」：只清经理通行证，不动店里的登录
+  if (p === '/mgrout' && req.method === 'POST') {
+    return json({ ok: true }, 200, { 'Set-Cookie': mgrCookie('', 0) });
   }
 
-  const u = await currentUser(req, db);
+  const u = await currentUser(req, db, env);
   if (!u) throw new HttpError(401, '请先登录');
   const isOp = u.role === 'op';
   const needOp = () => { if (!isOp) throw new HttpError(403, '没有权限'); };
+  const mgrName = await mgrOfReq(req, env);   // 跟店员会话并存的经理身份（战报页用）
+
+  // 区域经理（2026-11-16，从会员助手「套餐战报」进来）只放这几个：/me、战报数据、战报的店员下拉。
+  // 战报本身给全部门店（2026-11-16 用户：允许他们看到所有的排名）；汇总表里有顾客手机号，经理不能拿（/summary 也不给），其他接口一律 403
+  if (u.role === 'mgr') {
+    const G = req.method === 'GET';
+    if (!(G && (p === '/me' || p === '/report' || (p === '/staff' && url.searchParams.has('all'))))) throw new HttpError(403, '区域经理只能看战报');
+  }
 
   if (p === '/me') return json({ role: u.role, store: u.store || null, name: u.name || null });
   // 自己改自己的密码（2026-11-12 用户：支持自己修改）：要输旧密码；改完自己这台不掉线，别的设备要重登
@@ -227,7 +322,8 @@ async function handle(req, env) {
     // 店员拿到的不带门店（2026-11-14 用户：别让所有人看到谁是哪家店的），按工号排；后台照旧带门店（战报店员下拉、修改弹窗要分组）
     if (url.searchParams.get('all')) {
       const all = await allStaff(db);
-      return json({ staff: isOp ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
+      // 区域经理跟后台一样拿全部（2026-11-16 用户：允许他们看到所有的排名，店员下拉也要能切别人的店员）
+      return json({ staff: isOp || u.role === 'mgr' || mgrName ? all : all.map((x) => ({ no: x.no, name: x.name })).sort((a, b) => (a.no < b.no ? -1 : 1)) });
     }
     const st = isOp ? str(url.searchParams.get('store'), 30) : u.store;
     if (!st) return json({ staff: [] });
@@ -363,10 +459,13 @@ async function handle(req, env) {
   }
   // 战报数据：时间段内提交的（不含删掉的），按提交时间算。只给统计要用的字段，不给姓名手机号
   if (p === '/report' && req.method === 'GET') {
-    needOp();
+    if (!(isOp || u.role === 'mgr' || mgrName)) throw new HttpError(403, '没有权限');
     const from = Number(url.searchParams.get('from')) || 0, to = Number(url.searchParams.get('to')) || now;
     const r = await db.prepare("SELECT s.store, s.staff_no, (SELECT name FROM staff WHERE no = s.staff_no) staff_name, s.kind, s.pkg, s.qty, s.created FROM subs s WHERE s.status <> 'del' AND s.kind <> 'refund' AND s.created >= ? AND s.created < ? ORDER BY s.created").bind(from, to).all();
-    return json({ rows: r.results });
+    // 有数据的第一天（2026-11-14 用户：选了很大的区间，默认从产生数据那天开始算）：同一个口径（不含删掉的、退货）
+    const f = await db.prepare("SELECT MIN(created) t FROM subs WHERE status <> 'del' AND kind <> 'refund'").first();
+    // 区域经理也拿全部（2026-11-16 用户：允许他们看到所有的排名），只给统计字段，不含姓名 / 手机号
+    return json({ rows: r.results, first: (f && f.t) || null });
   }
   // 汇总表（2026-11-13 用户：照他手工那张登记表——区域/日期/门店/单号/会员/手机/续卡日期/开卡续卡/备注/营业员/数量/套餐/奖励，能选日期）
   // 跟战报同一个口径：按提交时间、不含删掉的、不含退货

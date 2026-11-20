@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>套餐销售战报 · 赫眉 HYMN</title>
+<link rel="icon" href="logo-ink.png">
+<!-- 区域经理专用（2026-11-16 用户：点「套餐战报」要直接看到战报，不要先进操作台 / 店员登记）：
+     只认通行证 cookie c365_m，跟手机上登着的店员版互不影响；没有账号、不改任何数据，只有战报 + 复制 / 下载图片 -->
+<style>
+:root{
+  --bg:#FFFFFF; --paper:#FAFAF8; --line:#F0EDE6; --line-2:#E3DFD6;
+  --ink:#16140F; --t1:#16140F; --t2:#4A453C; --t3:#9C958A; --t4:#B4ADA1;
+  --pink-deep:#B9808B; --gold:#C9A15A;
+  --num:Didot,"Bodoni 72",Georgia,serif;
+  --sans:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  --song:"Songti SC","STSong",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);color:var(--t1);background:var(--bg);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:40px}
+.top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:rgba(255,255,255,.97);z-index:20}
+.top img{height:22px;display:block}
+.top .ttl{font-size:13px;letter-spacing:.12em;color:var(--t2)}
+.top .who{margin-left:auto;font-size:12px;color:var(--t3);text-align:right;line-height:1.4}
+.top .out{border:0;background:none;color:var(--t3);font-size:12px;border-bottom:1px solid var(--line-2);padding:0;cursor:pointer}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 0}
+body.embed{padding-bottom:12px;background:#fff}
+body.embed .top{display:none}
+body.embed .wrap{padding-top:12px}
+body.embed h1{font-size:20px;margin-bottom:2px}
+body.embed #verB{display:none}
+h1{font-family:var(--song);font-size:24px;font-weight:400;letter-spacing:.06em;margin:2px 0 4px}
+.sub{font-size:12px;color:var(--t3)}
+.rbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.fseg{position:relative;display:inline-flex;align-items:center;gap:2px;padding:3px;background:#F2F0EB;height:38px;box-sizing:border-box;max-width:100%;overflow:visible;flex-wrap:wrap}
+.fseg > a{display:flex;align-items:center;height:32px;padding:0 11px;font-size:13px;color:var(--t3);cursor:pointer;white-space:nowrap;user-select:none}
+.fseg > a:hover{color:var(--t1)}
+.fseg > a.on{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.fseg.open > a.on{background:transparent;box-shadow:none;font-weight:400;color:var(--t3)}
+.fseg.open > #rCusBtn{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.fseg .fpop{position:absolute;top:calc(100% + 6px);right:0;left:auto;z-index:60;padding:12px 14px 14px;background:#fff;border:1px solid var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.08);max-width:94vw}
+.fseg .fch{font-size:12px;color:var(--t3);margin-bottom:8px;white-space:nowrap}
+.dedit{display:flex;align-items:center;gap:10px;white-space:nowrap;flex-wrap:wrap}
+.dedit b{font-weight:400;color:var(--t3);font-size:13px}
+.dgrp{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line-2);padding:4px 8px;height:38px;box-sizing:border-box}
+.dgrp:focus-within{border-color:var(--ink)}
+.dgrp .dn{width:2.2em;border:0;outline:0;padding:2px 0;text-align:center;font-family:var(--num);font-size:16px;color:var(--t1);background:transparent}
+.dgrp .dn.y{width:3.4em}
+.dgrp .dn:focus{background:#F2F0EB}
+.dgrp i{font-style:normal;font-size:12px;color:var(--t3)}
+.dok{height:38px;padding:0 18px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-size:13px;cursor:pointer}
+.derr{font-size:12px;color:var(--pink-deep);min-height:16px;margin-top:6px}
+.seg{display:flex;border:1px solid var(--line-2);height:38px;box-sizing:border-box}
+.seg button{flex:1;border:0;background:#fff;padding:0 14px;cursor:pointer;font-size:13px;color:var(--t2);white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on{background:var(--ink);color:#fff}
+.rwrap{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:6px}
+.rprev{width:540px;max-width:100%;border:1px solid var(--line-2);flex:none}
+.rprev canvas{display:block;width:100%}
+.rbtns{display:flex;flex-wrap:wrap;gap:10px}
+.btn{border:1px solid var(--line-2);background:#fff;padding:9px 18px;cursor:pointer;letter-spacing:.06em;font-size:13px}
+.btn:hover{border-color:var(--ink)}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hint{font-size:12px;color:var(--t3);margin:12px 0}
+.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 22px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:86vw;text-align:center}
+.toast.on{opacity:1}
+.gate{max-width:520px;margin:70px auto;padding:0 24px;text-align:center;font-size:14px;line-height:2;color:var(--t2)}
+.gate a{color:var(--pink-deep)}
+@media (max-width:640px){
+  .fseg > a{padding:0 9px;font-size:12.5px}
+  .rseg button{padding:0 9px;font-size:12.5px}
+  h1{font-size:21px}
+  .rwrap{gap:12px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="logo-ink.png" alt="赫眉 HYMN"><span class="ttl">套餐销售战报</span>
+  <span class="who" id="who"></span>
+</header>
+
+<div class="wrap" id="main" hidden>
+  <h1>套餐销售战报</h1>
+  <p class="sub">按店员提交的时间统计办卡份数；删掉的、退货不算。复制或下载图片发群，不能导出名单。</p>
+  <div class="rbar" style="margin-top:14px">
+    <span class="fseg" id="rPer"><a data-p="today">今天</a><a data-p="yday">昨天</a><a data-p="d7">近7天</a><a data-p="d30">近30天</a><a data-p="month">本月</a><a data-p="custom" id="rCusBtn">自定义</a></span>
+  </div>
+  <div class="rbar">
+    <div class="seg rseg" id="rBy"><button type="button" data-b="store">按门店排</button><button type="button" data-b="staff">按店员排</button></div>
+    <select id="rMgr"><option value="">全部区域经理</option></select>
+    <select id="rStore"><option value="">全部门店</option></select>
+    <select id="rStaff"><option value="">全部店员</option></select>
+  </div>
+  <p class="hint" id="rInfo"></p>
+  <div class="rwrap">
+    <div class="rprev" id="rPrev"></div>
+    <div class="rbtns"><button class="btn pri" id="rCopy" type="button">复制图片</button><button class="btn" id="rPng" type="button">下载图片</button></div>
+  </div>
+</div>
+<div class="gate" id="gate" hidden></div>
+<div class="toast" id="toast"></div>
+
+<script src="stores.js?v=202611162006"></script>
+<script src="report.js?v=202611162006"></script>
+<script src="xsel.js?v=202611162006"></script>
+<script src="api.js?v=202611162006"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const ymd = d => (d.getMonth() + 1) + '月' + d.getDate() + '日';
+let tt;
+function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2400); }
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  return Promise.resolve('下载');
+}
+
+/* ---------- 通行证 ----------
+   两种进来方式：
+   ① 会员助手里嵌进去（?embed=1&t=短时通行证）：换成 12 小时的，放在请求头 X-Mgr（跨站 iframe 里 cookie 会被浏览器拦掉）
+   ② 直接打开 card.hemei.asia/report：用 cookie c365_m
+   都跟店里登着的店员版互不影响 */
+const Q = new URLSearchParams(location.search);
+const EM = Q.get('embed') === '1';   // 嵌在会员助手里：不要顶栏、不要退出
+if (EM) document.body.classList.add('embed');
+let MT = '';
+try { MT = sessionStorage.getItem('c365_mt') || ''; } catch (e) {}
+async function rGet(path) {
+  const r = await fetch('/api' + path, { credentials: 'same-origin', headers: MT ? { 'X-Mgr': MT } : {} });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('出错了（' + r.status + '）'));
+  return j;
+}
+async function boot() {
+  const tk = Q.get('t');
+  if (tk) {
+    try { const d = await (await fetch('/api/mgrlogin?t=' + encodeURIComponent(tk))).json(); if (d && d.token) { MT = d.token; try { sessionStorage.setItem('c365_mt', MT); } catch (e) {} } } catch (e) {}
+    history.replaceState(null, '', location.pathname + (EM ? '?embed=1' : ''));   // 地址栏里不留通行证
+  }
+  let m = null;
+  try { m = await rGet('/mgrme'); } catch (e) { m = null; }
+  if (!m) {
+    $('#main').hidden = true;
+    $('#gate').hidden = false;
+    $('#gate').innerHTML = '通行证已过期（12 小时）。<br>回会员助手点一下「套餐战报」就好。' +
+      '<br><a href="https://vip.hemei.asia/#view=follow">去会员助手 ›</a>';
+    return;
+  }
+  $('#who').innerHTML = esc(m.name) + '（区域经理）<br><button class="out" id="outBtn" type="button">退出</button>';
+  $('#outBtn').onclick = async () => { try { await fetch('/api/mgrout', { method: 'POST', headers: { 'X-Hymn': '1' } }); } catch (e) {} location.href = 'https://vip.hemei.asia/'; };
+  $('#main').hidden = false;
+  document.body.dataset.mgr = m.name;
+  rStart();
+}
+boot().catch(() => { $('#gate').hidden = false; $('#gate').textContent = '网络不通，请稍后再试'; });
+
+/* ---------- 战报（跟操作台同一套 Report365） ---------- */
+const RP = { p: 'month', mode: 'range', from: '', to: '', by: 'store' };
+try { Object.assign(RP, JSON.parse(localStorage.getItem('c365_report') || '{}')); } catch (e) {}
+if (['today', 'yday', 'd7', 'd30', 'month', 'custom'].indexOf(RP.p) < 0) RP.p = 'month';
+const dAdd = (d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+function rPeriod() {
+  const t = iso(new Date()); let from = t, to = t;
+  if (RP.p === 'yday') from = to = dAdd(t, -1);
+  else if (RP.p === 'd7') from = dAdd(t, -6);
+  else if (RP.p === 'd30') from = dAdd(t, -29);
+  else if (RP.p === 'month') from = t.slice(0, 8) + '01';
+  else if (RP.p === 'custom') { from = RP.from || t.slice(0, 8) + '01'; to = RP.to || t; if (to > t) to = t; if (from > to) [from, to] = [to, from]; }
+  RP.mode = 'range'; RP.from = from; RP.to = to;
+}
+$('#rMgr').insertAdjacentHTML('beforeend', STORES.map(([m]) => `<option>${m}</option>`).join(''));
+function rFillStores() {
+  const m = $('#rMgr').value, cur = $('#rStore').value;
+  $('#rStore').innerHTML = '<option value="">全部门店</option>' + STORES.filter(([k]) => !m || k === m).map(([k, l]) => `<optgroup label="${k}">${l.map(x => `<option>${x}</option>`).join('')}</optgroup>`).join('');
+  if (STORE_MGR[cur] && (!m || STORE_MGR[cur] === m)) $('#rStore').value = cur;
+}
+$('#rMgr').value = '';   // 默认全部区域经理（全区排名），也能在下拉里切到自己那组
+rFillStores(); $('#rStore').value = '';
+let rStaffAll = [];
+function rFillStaff() {
+  const m = $('#rMgr').value, st = $('#rStore').value, cur = RP.staff != null ? RP.staff : $('#rStaff').value, by = {};
+  rStaffAll.forEach(x => { if ((!st || x.store === st) && (!m || STORE_MGR[x.store] === m || x.store === '后台')) (by[x.store] = by[x.store] || []).push(x); });
+  if (st || m) delete by['后台'];
+  $('#rStaff').innerHTML = '<option value="">全部店员</option>' + Object.keys(by).map(k => `<optgroup label="${esc(k)}">${by[k].map(x => `<option value="${esc(x.name)}">${esc(x.name)} · ${esc(x.no)}</option>`).join('')}</optgroup>`).join('');
+  $('#rStaff').value = cur; if ($('#rStaff').value !== cur) $('#rStaff').value = '';
+}
+let rCanvas = null, rData = null, rLogo = null, rSeq = 0, STARTED = false;
+function rSave() { try { localStorage.setItem('c365_report', JSON.stringify({ p: RP.p, by: RP.by, from: RP.from, to: RP.to, mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value })); } catch (e) {} }
+async function rRender() {
+  if (!STARTED) return;
+  rPeriod();
+  document.querySelectorAll('#rPer > a').forEach(a => a.classList.toggle('on', a.dataset.p === RP.p));
+  $('#rCusBtn').textContent = RP.p === 'custom' ? (RP.from === RP.to ? rMd(RP.from) : rMd(RP.from) + ' – ' + rMd(RP.to)) : '自定义';
+  document.querySelectorAll('#rBy button').forEach(b => b.classList.toggle('on', b.dataset.b === RP.by));
+  rSave();
+  let r = Report365.range(RP); const seq = ++rSeq;
+  $('#rInfo').textContent = '统计中…';
+  let rows, first = null;
+  try { const d = await rGet(`/report?from=${r.from}&to=${r.to}`); rows = d.rows; first = d.first; } catch (e) { $('#rInfo').textContent = e.message; return; }
+  if (seq !== rSeq) return;
+  if (first) { const fd = iso(new Date(first)); if (r.from < new Date(fd + 'T00:00:00').getTime() && fd <= iso(r.toD)) {
+    r = Report365.range(Object.assign({}, RP, { mode: 'range', from: fd, to: iso(r.toD) })); if (RP.p === 'custom') { RP.from = fd; rSave(); $('#rCusBtn').textContent = RP.from === RP.to ? rMd(RP.from) : rMd(RP.from) + ' – ' + rMd(RP.to); } } }
+  rData = Report365.compute(rows, { mgr: $('#rMgr').value, store: $('#rStore').value, staff: $('#rStaff').value, by: RP.by }, r);
+  $('#rInfo').textContent = `${ymd(r.fromD)} ~ ${ymd(r.toD)} · ${rData.scope} · 共 ${rData.total} 份`;
+  if (!rLogo) rLogo = await new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = 'logo-ink.png'; });
+  rCanvas = Report365.draw(rData, rLogo);
+  $('#rPrev').innerHTML = ''; $('#rPrev').appendChild(rCanvas);
+}
+const rName = () => { const r = rData.r; return `套餐销售战报_${Report365.iso(r.fromD)}${r.toD - r.fromD > 1000 ? '_' + Report365.iso(r.toD) : ''}`; };
+const rMd = d => d.slice(5, 7) + '/' + d.slice(8, 10);
+// 自定义：直接改年月日数字（同操作台）
+let CAL = null;
+function calOpen() {
+  const t = iso(new Date()), f = RP.p === 'custom' ? RP.from : t.slice(0, 8) + '01', e = RP.p === 'custom' ? RP.to : t;
+  CAL = true; $('#rPer').classList.add('open');
+  const grp = (k, d) => `<span class="dgrp" data-k="${k}"><input class="dn y" maxlength="4" inputmode="numeric" value="${d.slice(0, 4)}"><i>年</i><input class="dn" maxlength="2" inputmode="numeric" value="${+d.slice(5, 7)}"><i>月</i><input class="dn" maxlength="2" inputmode="numeric" value="${+d.slice(8, 10)}"><i>日</i></span>`;
+  let p = $('#rPop');
+  if (!p) { p = document.createElement('div'); p.className = 'fpop'; p.id = 'rPop'; $('#rPer').appendChild(p); }
+  p.innerHTML = `<div class="fch">直接改数字，回车或点确定</div><div class="dedit">${grp('a', f)}<b>至</b>${grp('b', e)}<button type="button" class="dok">确定</button></div><div class="derr" id="rDerr"></div>`;
+  const first = p.querySelector('.dn'); first.focus(); first.select();
+}
+function calClose() { const p = $('#rPop'); if (p) p.remove(); $('#rPer').classList.remove('open'); CAL = null; }
+function calRead(k) {
+  const box = [...$('#rPop').querySelectorAll(`.dgrp[data-k="${k}"] .dn`)], nm = k === 'a' ? '开始' : '结束';
+  let [y, m, d] = box.map(x => parseInt(x.value, 10));
+  if (!(y >= 2000 && y <= 2100)) return { err: `${nm}日期的年份要填 4 位，比如 ${new Date().getFullYear()}`, el: box[0] };
+  if (!(m >= 1 && m <= 12)) return { err: `${nm}日期的月份要在 1 到 12 之间`, el: box[1] };
+  if (!(d >= 1 && d <= 31)) return { err: `${nm}日期的日子要在 1 到 31 之间`, el: box[2] };
+  const last = new Date(y, m, 0).getDate();
+  if (d > last) { d = last; box[2].value = d; }
+  return iso(new Date(y, m - 1, d));
+}
+function calApply() {
+  let a = calRead('a'), b = calRead('b'); const t = iso(new Date()), bad = typeof a === 'object' ? a : typeof b === 'object' ? b : null;
+  if (bad) { $('#rDerr').textContent = bad.err; bad.el.focus(); bad.el.select(); return; }
+  if (a > b) { $('#rDerr').textContent = `结束日期（${+b.slice(5, 7)}/${+b.slice(8, 10)}）比开始日期（${+a.slice(5, 7)}/${+a.slice(8, 10)}）早，改一下`; const e = $('#rPop').querySelector('.dgrp[data-k="b"] .dn'); e.focus(); e.select(); return; }
+  if (a > t) { $('#rDerr').textContent = `开始那天（${+a.slice(5, 7)}/${+a.slice(8, 10)}）还没到`; return; }
+  if (b > t) b = t;
+  RP.p = 'custom'; RP.from = a; RP.to = b; calClose(); rRender();
+}
+$('#rPer').addEventListener('click', e => {
+  const a = e.target.closest('#rPer > a[data-p]');
+  if (a) {
+    e.stopPropagation();
+    if (a.dataset.p === 'custom') { if (CAL) calClose(); else calOpen(); return; }
+    calClose(); RP.p = a.dataset.p; rRender(); return;
+  }
+  if (!CAL || !e.target.closest('#rPop')) return;
+  e.stopPropagation();
+  if (e.target.closest('.dok')) calApply();
+});
+$('#rPer').addEventListener('focusin', e => { if (e.target.classList.contains('dn')) setTimeout(() => e.target.select(), 0); });
+$('#rPer').addEventListener('input', e => {
+  const x = e.target; if (!x.classList.contains('dn')) return;
+  x.value = x.value.replace(/\D/g, ''); $('#rDerr').textContent = '';
+  if (x.value.length >= x.maxLength) { const all = [...$('#rPop').querySelectorAll('.dn')], n = all[all.indexOf(x) + 1]; if (n) { n.focus(); n.select(); } }
+});
+$('#rPer').addEventListener('keydown', e => {
+  const x = e.target; if (!x.classList || !x.classList.contains('dn')) return;
+  if (e.key === 'Enter') { e.preventDefault(); calApply(); return; }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); x.value = Math.max(0, (parseInt(x.value, 10) || 0) + (e.key === 'ArrowUp' ? 1 : -1)); x.select(); }
+});
+document.addEventListener('click', e => { if (CAL && !e.target.closest('#rPer')) calClose(); });
+document.addEventListener('keydown', e => { if (CAL && e.key === 'Escape') calClose(); });
+document.querySelectorAll('#rBy button').forEach(b => b.onclick = () => { RP.by = b.dataset.b; rRender(); });
+$('#rMgr').onchange = () => { rFillStores(); rFillStaff(); rRender(); };
+$('#rStore').onchange = () => { rFillStaff(); rRender(); };
+$('#rStaff').onchange = rRender;
+$('#rCopy').onclick = () => {
+  if (!rCanvas) return;
+  if (!navigator.clipboard || !window.ClipboardItem) return toast('这个浏览器不支持复制图片，请用「下载图片」');
+  rCanvas.toBlob(b => navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(() => toast('已复制，去微信里粘贴就行')).catch(() => toast('复制失败，请用「下载图片」')), 'image/png');
+};
+$('#rPng').onclick = () => { if (!rCanvas) return; rCanvas.toBlob(b => download(b, rName() + '.png').then(w => toast('已存到' + w)), 'image/png'); };
+
+function rStart() {
+  STARTED = true;
+  document.querySelectorAll('select').forEach(el => XSel.attach(el));   // 所有下拉框自己画（跟操作台一致）
+  rGet('/staff?all=1').then(d => { rStaffAll = d.staff || []; rFillStaff(); }).catch(() => {});
+  rRender();
+}
+</script>
+<!-- 版本号（部署时 bump.sh 写入） -->
+<style>#verB{position:fixed;top:3px;right:8px;z-index:9999;font-size:9px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}</style><span id="verB">版本 2026.11.16 20:06</span>
+</body>
+</html>

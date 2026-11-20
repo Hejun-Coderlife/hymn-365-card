@@ -101,7 +101,7 @@
     g.textAlign = 'right'; g.fillText('份数 · 新开 / 续卡 / 其它', W - PAD, y + 26); g.textAlign = 'left';
     y += 44;
     const max = Math.max(1, ...rows.map(o => o.n)), nameW = 150, barX = PAD + 28 + nameW, barW = 120;   // 条短一点，右边给「新 · 续 · 其」留地方
-    const subs = new Set(rows.map(o => o.sub)), showSub = D.by === 'staff' || subs.size > 1;
+    const showSub = D.by === 'staff';   // 按门店排时不写经理名字（2026-11-15 用户：战报里店名后面经理的名字去掉）；按店员排时后面是门店，留着
     if (!rows.length) { g.fillStyle = C.t3; g.font = '13px ' + SANS; g.fillText('这段时间还没有登记', PAD + 28, y + ROW / 2 + 4); }
     rows.forEach((o, i) => {
       const cy = y + i * ROW, mid = cy + ROW / 2 + 4;
