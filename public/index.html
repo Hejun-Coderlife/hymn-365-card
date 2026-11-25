@@ -428,16 +428,36 @@ tr.wash td:first-child{border-left:2px solid var(--pink)}
   </form></div>
 <div class="toast" id="toast"></div>
 
-<script src="stores.js?v=202611201450"></script>
-<script src="report.js?v=202611201450"></script>
-<script src="xsel.js?v=202611201450"></script>
-<script src="datepick.js?v=202611201450"></script>
-<script src="api.js?v=202611201450"></script>
-<script src="vendor/xlsx.full.min.js?v=202611201450"></script>
-<script src="xls.js?v=202611201450"></script>
-<script src="gen.js?v=202611201450"></script>
+<script src="stores.js?v=202611250940"></script>
+<script src="report.js?v=202611250940"></script>
+<script src="xsel.js?v=202611250940"></script>
+<script src="datepick.js?v=202611250940"></script>
+<script src="api.js?v=202611250940"></script>
+<script src="vendor/xlsx.full.min.js?v=202611250940"></script>
+<script src="xls.js?v=202611250940"></script>
+<script src="gen.js?v=202611250940"></script>
 <script>
 const $ = s => document.querySelector(s);
+// Excel 组件兜底（2026-11-25 用户 Windows 截图「导出出错：XLSX is not defined」）：xlsx.full.min.js 有 880KB，
+// 网络一抖没下完，页面别的都正常、到导出才报错。用到前先检查，没有就带新参数重新下（最多 3 次）
+let xlsxP = null;
+function needXLSX() {
+  if (window.XLSX && window.XLSX.CFB) return Promise.resolve();
+  if (xlsxP) return xlsxP;
+  const base = (document.querySelector('script[src*="xlsx.full.min.js"]') || {}).src || 'vendor/xlsx.full.min.js';
+  const once = i => new Promise((ok, no) => {
+    const el = document.createElement('script');
+    el.src = base + (base.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now() + i;
+    el.onload = () => window.XLSX && window.XLSX.CFB ? ok() : no(new Error('bad'));
+    el.onerror = () => { el.remove(); no(new Error('net')); };
+    document.head.appendChild(el);
+  });
+  const go = i => once(i).catch(e => i < 2 ? new Promise(r => setTimeout(r, 800)).then(() => go(i + 1)) : Promise.reject(e));
+  toast('Excel 组件没加载上，正在重新下载…');
+  xlsxP = go(0).catch(() => { xlsxP = null; throw new Error('Excel 组件下载不下来，网络不稳，刷新页面（Ctrl+F5）再试'); });
+  return xlsxP;
+}
+setTimeout(() => { needXLSX().catch(() => {}); }, 3000);   // 打开 3 秒后发现没加载上就先悄悄补
 document.querySelectorAll('input[type=date]').forEach(el => DatePick.attach(el));   // 中文日历（浏览器自带的跟系统语言走）
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today = new Date();
@@ -567,7 +587,8 @@ function update() {
 }
 
 // 读 Excel：每行把所有格子拼成一行文本，交给同一个识别逻辑
-function readFile(f) {
+async function readFile(f) {
+  try { await needXLSX(); } catch (e) { return toast(e.message); }
   const r = new FileReader();
   r.onload = e => {
     try {
@@ -589,7 +610,8 @@ let tmr;
 $('#txt').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(update, 120); });
 $('#file').onchange = e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value = ''; };
 // 名单模板：姓名 / 手机号 / 日期（日期可不填，填了就是这个人自己的起算日）
-$('#tpl').onclick = () => {
+$('#tpl').onclick = async () => {
+  try { await needXLSX(); } catch (e) { return toast(e.message); }
   // 2026-11-11 用户：太复杂了 → 只留 姓名 / 手机号 / 日期 三列，日期不填 = 当天，填了按写的日期
   const sd = d => ({ date: Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899, 11, 30)) / 864e5) });
   const bytes = XLS.write(XLSX.CFB, [{ name: '名单', widths: [14, 16, 40], rows: [
@@ -729,6 +751,7 @@ $('#go').onclick = async () => {
   // 店员提交载入的人带上门店（3次护理导入 F 列）
   people.forEach(p => { const x = loaded[p.phone] && subs.pending.find(y => y.id === loaded[p.phone]); p.store = x ? x.store : ''; });
   try {
+    await needXLSX();
     const where = await download(new Blob([Gen.buildXls(XLSX, XLS, people, opt)], { type: XLS_MIME }), Gen.allName(people, opt.date), btn);
     toast(`已导出 ${Gen.allName(people, opt.date)}，在${where}；名单已清空`);
     await markExported();
@@ -892,6 +915,7 @@ async function reExport(ids) {
   ps.forEach(p => { const x = rows.find(y => y.phone === p.phone); p.store = x ? x.store : ''; });
   const opt = { date: curDate(), mode }, name = Gen.allName(ps, opt.date);
   try {
+    await needXLSX();
     const where = await download(new Blob([Gen.buildXls(XLSX, XLS, ps, opt)], { type: XLS_MIME }), name);
     toast(`已再次导出 ${name}，在${where}`);
     logAct('export', `再次导出 ${ps.length} 人：` + rows.map(x => `#${x.id} ${x.name || ''} ${x.phone}`).join('、'));
@@ -1175,6 +1199,7 @@ function rRankSheet() {
 const POOL = 50;   // 每份套餐进奖金池 50 元（2026-11-14 用户）
 const REWARD = { 1980: 100, 3980: 200, 6980: 400, 19800: 1000 };   // 每份个人奖励（2026-11-14 用户补上 6980 / 19800）
 $('#rXls').onclick = async () => {
+  try { await needXLSX(); } catch (e) { return toast(e.message); }
   if (!rData) return;
   const r = Report365.range(RP);
   let rows;
@@ -1249,6 +1274,6 @@ if (location.protocol !== 'file:') {
 }
 </script>
 <!-- 版本号（2026-11-12 用户：右上角照日记账工具显示版本，看得出刷新后是不是新版）：部署时写入（stamp） -->
-<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.20 14:50</span>
+<style>#verB{position:fixed;top:24px;right:40px;z-index:9999;font-size:12px;color:#b3aca0;letter-spacing:.05em;pointer-events:none;font-family:"PingFang SC","Helvetica Neue",sans-serif}@media (max-width:700px){#verB{top:3px;right:8px;font-size:9px}}</style><span id="verB">版本 2026.11.25 09:40</span>
 </body>
 </html>
